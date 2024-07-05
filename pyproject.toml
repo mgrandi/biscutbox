@@ -18,3 +18,11 @@ pytest = "^8.2.2"
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+
+[tool.pytest.ini_options]
+# https://docs.pytest.org/en/latest/reference/customize.html
+# or `pytest -h` to show options
+
+testpaths = "tests/"
+pythonpath = "."
