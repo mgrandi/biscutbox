@@ -1,11 +1,13 @@
-import sqlite3
-import typing
+from contextlib import contextmanager
 from http.cookiejar import CookieJar, CookiePolicy, Cookie
 from os import PathLike
-import logging
-import urllib.request
 import email.message
 import http
+import json
+import logging
+import sqlite3
+import typing
+import urllib.request
 
 from biscutbox import sql_statements as sql_statements
 
@@ -34,6 +36,28 @@ class SqliteCookieJar(CookieJar):
 
         if not database_path:
             raise ArgumentException(datab)
+
+    @contextmanager
+    def _get_sqlite3_database_cursor(self):
+
+        with self.sqlite_connection:
+
+            cur = None
+            try:
+                cur = self.sqlite_connection.cursor()
+                yield cur
+            except Exception as e:
+                # do something with exception
+                logger.exception("Uncaught exception in _get_sqlite3_database_cursor, performing rollback")
+                self.sqlite_connection.rollback()
+                raise
+            else:
+                logger.debug("sqlite3 database transaction committing")
+                self.sqlite_connection.commit()
+            finally:
+                if cur:
+                    logger.debug("sqlite3 cursor closing")
+                    cur.close()
 
     def connect(self):
         '''
