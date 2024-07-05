@@ -112,8 +112,11 @@ class SqliteCookieJar(CookieJar):
 
 
     @typing.override
-    def set_cookie(self, cookie):
-        """Set a cookie, without checking whether or not it should be set."""
+    def set_cookie(self, cookie:Cookie):
+        """Set a cookie, without checking whether or not it should be set.
+
+        :param cookie: the Cookie object to add
+        """
 
         with self._get_sqlite3_database_cursor() as cursor:
 
@@ -142,11 +145,47 @@ class SqliteCookieJar(CookieJar):
             cursor.execute(sql_statements.INSERT_COOKIE_STATEMENT, parameter_dict)
 
 
+    def set_cookies(self, cookie_list:list[Cookie]):
+        '''
+        non override method, but a way to bulk add cookies
+        :param cookie_list: a sequence of Cookie objects to add
+        '''
 
+        with self._get_sqlite3_database_cursor() as cursor:
+
+            logger.debug("inserting `%s cookies into the database", len(cookie_list))
+
+            param_dict_list = list()
+
+            for cookie in cookie_list:
+                iter_param_dict = {
+                    "version": cookie.version,
+                    "name": cookie.name,
+                    "value": cookie.value,
+                    "port": cookie.port,
+                    "domain": cookie.domain,
+                    "path": cookie.path,
+                    "secure": cookie.secure,
+                    "expires": cookie.expires,
+                    "discard": cookie.discard,
+                    "comment": cookie.comment,
+                    "comment_url": cookie.comment_url,
+                    "rfc2109": cookie.rfc2109,
+                    "rest": json.dumps(cookie._rest),
+                    "port_specified": cookie.port_specified,
+                    "domain_specified": cookie.domain_specified,
+                    "domain_initial_dot": cookie.domain_initial_dot,
+                    "path_specified": cookie.path_specified
+                }
+
+                param_dict_list.append(iter_param_dict)
+
+            cursor.executemany(sql_statements.INSERT_COOKIE_STATEMENT, param_dict_list)
 
 
 
     def close(self):
+        ''' commit and close the database'''
 
         logger.debug("Committing and closing connection")
 
