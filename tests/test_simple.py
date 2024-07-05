@@ -1,9 +1,20 @@
-from tests.fixtures import database_path, sqlite_cookie_jar
+from tests.fixtures import \
+(
+    database_path,
+    sqlite_cookie_jar,
+    giant_list_of_cookies,
+    giant_cookiejar_jsonl_path
+)
+from biscutbox.sqlite_cookie_jar import SqliteCookieJar
 
+import pathlib
+import itertools
 from http.cookiejar import Cookie
 
 class TestSimple:
-    def test_simple(self, sqlite_cookie_jar):
+
+    def test_simple(self,
+        sqlite_cookie_jar:SqliteCookieJar):
 
         assert sqlite_cookie_jar != None
 
@@ -28,3 +39,17 @@ class TestSimple:
             rfc2109=False)
 
         sqlite_cookie_jar.set_cookie(test_cookie)
+
+
+    def test_load_giant_cookie_file(
+        self,
+        sqlite_cookie_jar:SqliteCookieJar,
+        giant_list_of_cookies:list[Cookie]):
+
+        assert sqlite_cookie_jar != None
+
+        assert giant_list_of_cookies != None
+
+        for iter_batch in itertools.batched(giant_list_of_cookies, 20):
+
+            sqlite_cookie_jar.set_cookies(iter_batch)
