@@ -4,6 +4,7 @@ TABLE_NAME_V1 = "biscutbox_cookies_v1"
 a statement to create the Cookies V1 table
 setting a basic cookie shows every value filled in except for:
 
+value
 port
 expires
 comment
@@ -26,7 +27,7 @@ CREATE TABLE IF NOT EXISTS "{TABLE_NAME_V1}"  (
     "id" INTEGER NOT NULL,
     "version" INTEGER NOT NULL,
     "name" TEXT NOT NULL,
-    "value" INTEGER NOT NULL,
+    "value" TEXT,
     "port" INTEGER ,
     "domain" TEXT NOT NULL,
     "path" TEXT NOT NULL,
