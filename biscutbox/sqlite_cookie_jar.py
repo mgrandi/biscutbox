@@ -45,6 +45,7 @@ class SqliteCookieJar(CookieJar):
 
         logger.debug("Connecting to the sqlite database at the path `%s`", self.database_path)
         self.sqlite_connection = sqlite3.connect(database=self.database_path)
+        self.sqlite_connection.row_factory = sqlite3.Row
         logger.info("Connected to the sqlite database at the path `%s`", self.database_path)
 
         self._create_tables()
