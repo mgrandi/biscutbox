@@ -110,6 +110,42 @@ class SqliteCookieJar(CookieJar):
         '''
         pass
 
+
+    @typing.override
+    def set_cookie(self, cookie):
+        """Set a cookie, without checking whether or not it should be set."""
+
+        with self._get_sqlite3_database_cursor() as cursor:
+
+            logger.debug("inserting cookie `%s` into database", cookie)
+
+            parameter_dict = {
+                "version": cookie.version,
+                "name": cookie.name,
+                "value": cookie.value,
+                "port": cookie.port,
+                "domain": cookie.domain,
+                "path": cookie.path,
+                "secure": cookie.secure,
+                "expires": cookie.expires,
+                "discard": cookie.discard,
+                "comment": cookie.comment,
+                "comment_url": cookie.comment_url,
+                "rfc2109": cookie.rfc2109,
+                "rest": json.dumps(cookie._rest),
+                "port_specified": cookie.port_specified,
+                "domain_specified": cookie.domain_specified,
+                "domain_initial_dot": cookie.domain_initial_dot,
+                "path_specified": cookie.path_specified
+            }
+
+            cursor.execute(sql_statements.INSERT_COOKIE_STATEMENT, parameter_dict)
+
+
+
+
+
+
     def close(self):
 
         logger.debug("Committing and closing connection")
