@@ -21,7 +21,7 @@ everything else i set as NOT NULL
     domain_specified=False, domain_initial_dot=False, path='/', path_specified=True, secure=False, expires=None,
     discard=True, comment=None, comment_url=None, rest={}, rfc2109=False)]>
 '''
-CREATE_TABLE_STATEMENT_COOKIE_TABLE = \
+CREATE_TABLE_STATEMENT_COOKIE_TABLE:str = \
 f'''
 CREATE TABLE IF NOT EXISTS "{TABLE_NAME_V1}"  (
     "id" INTEGER NOT NULL,
@@ -49,7 +49,7 @@ CREATE TABLE IF NOT EXISTS "{TABLE_NAME_V1}"  (
 '''
 A SQL statement to insert a http.cookiejar into the database
 '''
-INSERT_COOKIE_STATEMENT = \
+INSERT_COOKIE_STATEMENT:str = \
 f'''
 INSERT INTO "{TABLE_NAME_V1}"
 (
@@ -103,7 +103,7 @@ COUNT_ENTRIES_IN_COOKIE_TABLE_KEY = "count_value"
 a SQL statement to count the number of entries in the
 v1 cookies table
 '''
-COUNT_ENTRIES_IN_COOKIE_TABLE_STATEMENT = \
+COUNT_ENTRIES_IN_COOKIE_TABLE_STATEMENT:str = \
 f'''
 SELECT COUNT(id) AS {COUNT_ENTRIES_IN_COOKIE_TABLE_KEY} FROM "{TABLE_NAME_V1}";
 
