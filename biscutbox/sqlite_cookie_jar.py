@@ -159,7 +159,54 @@ class SqliteCookieJar(CookieJar):
             cursor.executemany(sql_statements.INSERT_COOKIE_STATEMENT, param_dict_list)
 
 
+    @typing.override
+    def _cookies_for_domain(self, domain, request):
+        pass
 
+    @typing.override
+    def _cookies_for_request(self, request):
+        pass
+
+    @typing.override
+    def clear(self, domain=None, path=None, name=None):
+        pass
+
+    @typing.override
+    def clear_session_cookies(self):
+        pass
+
+    @typing.override
+    def clear_expired_cookies(self):
+        pass
+
+    def __iter__(self):
+        pass
+
+    def __len__(self):
+        '''
+        __len__ implementation, this returns the number of contained cookies.
+        For now, this invokes IO by queriyng the Sqlite database.
+        :return: the number of contained cookies in this cookiejar
+        '''
+        pass
+
+    def __repr__(self) -> str:
+        '''__repr__ implementation, the original CookieJar implementation
+        prints _every_ single cookie in the jar which doesn't scale, so far now we
+        are just printing the naem
+
+        :return: the string name of this class
+        '''
+        return f"<{self.__class__.__name__} />"
+
+    def __str__(self):
+        '''__str__ implementation, the original CookieJar implementation
+        prints _every_ single cookie in the jar which doesn't scale, so far now we
+        are just printing the naem
+
+        :return: the string name of this class
+        '''
+        return f"<{self.__class__.__name__} />"
     def close(self):
         ''' commit and close the database'''
 
