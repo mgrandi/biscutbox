@@ -15,14 +15,17 @@ from biscutbox.sqlite_cookie_jar import SqliteCookieJar
 logging.basicConfig(level="DEBUG", format="%(asctime)s %(threadName)-10s %(name)-20s %(levelname)-8s: %(message)s")
 
 
-@pytest.fixture
-def database_path() -> pathlib.Path:
-    ''' a fixture to return a path to save the database to
-    you can override it using direct test parametrization
-    see https://docs.pytest.org/en/latest/how-to/fixtures.html#override-a-fixture-with-direct-test-parametrization
-    '''
+@pytest.fixture(scope="function")
+def database_path(tmp_path_factory:pytest.TempPathFactory) -> pathlib.Path:
+    ''' a fixture to return a path suitable to store the database in. this will use a temporary path
+    provided by the tmp_path_factory fixture, and is scoped currently to be 'function', so it will be a new database
+    every time.
 
-    return pathlib.Path.home() / "Temp/cookiedb.sqlite3"
+    https://docs.pytest.org/en/latest/how-to/tmp_path.html#the-tmp-path-factory-fixture
+    '''
+    fn = tmp_path_factory.mktemp("data") / "cookiedb.sqlite3"
+
+    return fn
 
 @pytest.fixture
 def giant_cookiejar_jsonl_path() -> pathlib.Path:
