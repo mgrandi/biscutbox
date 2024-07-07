@@ -53,3 +53,8 @@ class TestSimple:
         for iter_batch in itertools.batched(giant_list_of_cookies, 20):
 
             sqlite_cookie_jar.set_cookies(iter_batch)
+
+        assert sqlite_cookie_jar._policy != None
+
+
+        assert len(sqlite_cookie_jar) >= 0

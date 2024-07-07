@@ -188,7 +188,11 @@ class SqliteCookieJar(CookieJar):
         For now, this invokes IO by queriyng the Sqlite database.
         :return: the number of contained cookies in this cookiejar
         '''
-        pass
+        with self._get_sqlite3_database_cursor() as cursor:
+            cursor.execute(sql_statements.COUNT_ENTRIES_IN_COOKIE_TABLE_STATEMENT)
+            fetch_result = cursor.fetchone()
+            return fetch_result[sql_statements.COUNT_ENTRIES_IN_COOKIE_TABLE_KEY]
+
 
     def __repr__(self) -> str:
         '''__repr__ implementation, the original CookieJar implementation

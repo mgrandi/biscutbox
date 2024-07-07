@@ -93,3 +93,18 @@ VALUES
 );
 
 '''
+
+'''
+the key to the value of the count() SQL statement
+'''
+COUNT_ENTRIES_IN_COOKIE_TABLE_KEY = "count_value"
+
+'''
+a SQL statement to count the number of entries in the
+v1 cookies table
+'''
+COUNT_ENTRIES_IN_COOKIE_TABLE_STATEMENT = \
+f'''
+SELECT COUNT(id) AS {COUNT_ENTRIES_IN_COOKIE_TABLE_KEY} FROM "{TABLE_NAME_V1}";
+
+'''
