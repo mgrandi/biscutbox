@@ -24,7 +24,9 @@ class SqliteCookieJar(CookieJar):
         '''
         constructor
 
-        :param database_path: the path to an existing database, or where it should be stored.
+        :param database_path: the path to an existing database, or where it should be stored. This is a PathLike
+        so it can either be a pathlib.Path like object, or a string. Also, `:memory:` can be passed to
+        use a in memory sqlite database.
         :param policy: the CookiePolicy object to use
         '''
 

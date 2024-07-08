@@ -125,6 +125,17 @@ def giant_list_of_cookies(giant_cookiejar_jsonl_path:pathlib.Path) -> list[Cooki
     return result_list
 
 
+@pytest.fixture
+def in_memory_sqlite_cookie_jar(database_path) -> SqliteCookieJar:
+    ''' a fixture to set up a SqliteCookieJar with a database that is only in RAM
+    '''
+
+    cj = SqliteCookieJar(database_path=":memory:")
+    cj.connect()
+
+    yield cj
+
+    cj.close()
 
 
 
