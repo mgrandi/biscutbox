@@ -72,6 +72,20 @@ class SqliteCookieJar(CookieJar):
         logger.debug("Connecting to the sqlite database at the path `%s`", self.database_path)
         self.sqlite_connection = sqlite3.connect(database=self.database_path)
         self.sqlite_connection.row_factory = sqlite3.Row
+
+        # turn on foreign keys and WAL
+        with self._get_sqlite3_database_cursor() as cur:
+            cur.execute(sql_statements.TURN_FOREIGN_KEYS_ON)
+            cur.execute(sql_statements.TURN_WAL_MODE_ON)
+            wal_result = cur.fetchone()
+
+            wal_result_key = "journal_mode"
+            if wal_result_key in wal_result.keys():
+                logger.debug("WAL pragma result: `%s`", wal_result[wal_result_key])
+            else:
+                logger.warning("couldn't find the key `%s` in the sqlite3.Row object returned after `%s`",
+                    wal_result_key, sql_statements.TURN_WAL_MODE_ON)
+
         logger.info("Connected to the sqlite database at the path `%s`", self.database_path)
 
         self._create_tables()

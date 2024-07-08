@@ -123,3 +123,21 @@ SELECT_ALL_FROM_COOKIE_TABLE_BATCH_STATEMENT:str = \
 f'''
 SELECT * FROM "{TABLE_NAME_V1}"
 LIMIT 1000 OFFSET {{}}'''
+
+'''
+SQL statement to turn foreign keys on
+see https://www3.sqlite.org/quirks.html#foreign_key_enforcement_is_off_by_default
+'''
+TURN_FOREIGN_KEYS_ON:str = \
+'''
+PRAGMA foreign_keys = true;
+'''
+
+'''
+SQL statement to turn Write Ahead Logging on
+see https://www.sqlite.org/wal.html
+'''
+TURN_WAL_MODE_ON:str = \
+f'''
+PRAGMA journal_mode=WAL;
+'''
