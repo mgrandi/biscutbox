@@ -108,3 +108,18 @@ f'''
 SELECT COUNT(id) AS {COUNT_ENTRIES_IN_COOKIE_TABLE_KEY} FROM "{TABLE_NAME_V1}";
 
 '''
+
+'''
+the batch size for the select all sql statement
+'''
+SELECT_ALL_FROM_COOKIE_TABLE_BATCH_SIZE:int = 1000
+
+'''
+A SQL statement that is meant to iterate over the entire table
+in batches. this has a python string.format marker `{}` that you are meant
+to fill in, as you cannot use parameters in that spot.
+'''
+SELECT_ALL_FROM_COOKIE_TABLE_BATCH_STATEMENT:str = \
+f'''
+SELECT * FROM "{TABLE_NAME_V1}"
+LIMIT 1000 OFFSET {{}}'''

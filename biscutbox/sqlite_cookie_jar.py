@@ -180,7 +180,66 @@ class SqliteCookieJar(CookieJar):
         pass
 
     def __iter__(self):
-        pass
+        '''
+        __iter__ implementation, this will iterate over the entire database in batchces.
+        This performs IO on the database, by selecting the total number of rows and then
+        fetching them in batches one by one.
+        '''
+
+        # get number of rows
+        number_of_rows = len(self)
+
+        logger.debug("__iter__: number of rows are `%s`", number_of_rows)
+        with self._get_sqlite3_database_cursor() as cursor:
+
+            # get count of rows in database
+            number_of_rows = len(self)
+
+            for iter_offset in range(0, number_of_rows, sql_statements.SELECT_ALL_FROM_COOKIE_TABLE_BATCH_SIZE):
+
+                # format the sql statement
+                iter_select_all_statement = sql_statements.SELECT_ALL_FROM_COOKIE_TABLE_BATCH_STATEMENT.format(iter_offset)
+
+                logger.debug("executing 'select all batch' statement with offset `%s`", iter_offset)
+
+                # execute it
+                cursor.execute(iter_select_all_statement)
+                iter_result = cursor.fetchall()
+
+                for iter_row in iter_result:
+
+                    # now yield one by one
+                    iter_cookie = self._cookie_from_sqlite_row(iter_row)
+                    yield iter_cookie
+
+    def _cookie_from_sqlite_row(self, row:sqlite3.Row) -> Cookie:
+        '''
+        returns a cookie from a sqlite3 row
+
+        :param row: the sqlite3.Row object we get from the database
+        :return: the Cookie object we parsed
+        '''
+
+        result_cookie = Cookie(
+            version=row["version"],
+            name=row["name"],
+            value=row["value"],
+            port=row["port"],
+            port_specified=bool(row["port_specified"]),
+            domain=row["domain"],
+            domain_specified=bool(row["domain_specified"]),
+            domain_initial_dot=bool(row["domain_initial_dot"]),
+            path=row["path"],
+            path_specified=bool(row["path_specified"]),
+            secure=bool(row["secure"]),
+            expires=row["expires"],
+            discard=bool(row["discard"]),
+            comment=row["comment"],
+            comment_url=row["comment_url"],
+            rest=json.loads(row["rest"]) if row["rest"] else {},
+            rfc2109=bool(row["rfc2109"]))
+
+        return result_cookie
 
     def __len__(self):
         '''
