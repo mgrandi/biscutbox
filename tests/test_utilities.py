@@ -1,5 +1,5 @@
 from http.cookiejar import Cookie
-
+import urllib.request
 
 
 def assert_cookie_equality(cookie_one:Cookie, cookie_two:Cookie):
@@ -30,3 +30,53 @@ def assert_cookie_equality(cookie_one:Cookie, cookie_two:Cookie):
     assert cookie_one.comment_url == cookie_two.comment_url
     assert cookie_one._rest == cookie_two._rest
     assert cookie_one.rfc2109 == cookie_two.rfc2109
+
+
+
+def create_simple_cookie(name:str, value:str, domain:str) -> Cookie:
+    '''helper to create a single cookie with a name and a value
+
+    :param name: the cookie name
+    :param value: the cookie value
+    :param domain: the cookie domain
+    :return: the Cookie with the name and value set
+    '''
+    test_cookie = Cookie(
+        version=0,
+        name=name,
+        value=value,
+        port=None,
+        port_specified=False,
+        domain=domain,
+        domain_specified=False,
+        domain_initial_dot=False,
+        path="/",
+        path_specified=True,
+        secure=False,
+        expires=None,
+        discard=True,
+        comment=None,
+        comment_url=None,
+        rest={},
+        rfc2109=False)
+
+    return test_cookie
+
+
+def create_dummy_request(url:str, method:str) -> urllib.request.Request:
+    '''
+    create a dummy urllib.request.Request object
+    :param url: the URL
+    :param method: the HTTP method
+    :return: a urllib.request.Request object
+    '''
+
+    dummy_request = urllib.request.Request(
+        url,
+        data=None,
+        headers={},
+        origin_req_host=None,
+        unverifiable=False,
+        method="GET")
+
+    return dummy_request
