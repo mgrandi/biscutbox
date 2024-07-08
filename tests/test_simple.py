@@ -17,9 +17,9 @@ from http.cookiejar import Cookie
 class TestSimple:
 
     def test_simple(self,
-        sqlite_cookie_jar:SqliteCookieJar):
+        in_memory_sqlite_cookie_jar:SqliteCookieJar):
 
-        assert sqlite_cookie_jar != None
+        assert in_memory_sqlite_cookie_jar != None
 
 
         test_cookie = Cookie(
@@ -41,39 +41,39 @@ class TestSimple:
             rest={},
             rfc2109=False)
 
-        sqlite_cookie_jar.set_cookie(test_cookie)
+        in_memory_sqlite_cookie_jar.set_cookie(test_cookie)
 
 
     def test_load_giant_cookie_file(
         self,
-        sqlite_cookie_jar:SqliteCookieJar,
+        in_memory_sqlite_cookie_jar:SqliteCookieJar,
         giant_list_of_cookies:list[Cookie]):
 
-        assert sqlite_cookie_jar != None
+        assert in_memory_sqlite_cookie_jar != None
 
         assert giant_list_of_cookies != None
 
-        for iter_batch in itertools.batched(giant_list_of_cookies, 20):
+        for iter_batch in itertools.batched(giant_list_of_cookies, 1000):
 
-            sqlite_cookie_jar.set_cookies(iter_batch)
+            in_memory_sqlite_cookie_jar.set_cookies(iter_batch)
 
-        assert sqlite_cookie_jar._policy != None
+        assert in_memory_sqlite_cookie_jar._policy != None
 
 
-        assert len(sqlite_cookie_jar) >= 0
+        assert len(in_memory_sqlite_cookie_jar) >= 0
 
     def test_insert_rows_and_test_len(
         self,
-        sqlite_cookie_jar:SqliteCookieJar):
+        in_memory_sqlite_cookie_jar:SqliteCookieJar):
         '''
         tests to make sure len() works after creating a database
         inserting a few rows and then calling len()
 
-        :param sqlite_cookie_jar: a sqlite cookie jar object created with a database
+        :param in_memory_sqlite_cookie_jar: a sqlite cookie jar object created with a database
         saved to a temporary folder somewhere. provided by a fixture
         '''
 
-        assert len(sqlite_cookie_jar) == 0
+        assert len(in_memory_sqlite_cookie_jar) == 0
 
         for i in range(5):
             test_cookie = Cookie(
@@ -95,20 +95,20 @@ class TestSimple:
                 rest={},
                 rfc2109=False)
 
-            sqlite_cookie_jar.set_cookie(test_cookie)
+            in_memory_sqlite_cookie_jar.set_cookie(test_cookie)
 
-        assert len(sqlite_cookie_jar) == 5
+        assert len(in_memory_sqlite_cookie_jar) == 5
 
 
 
 
     def test_insert_rows_and_test_iter(
         self,
-        sqlite_cookie_jar:SqliteCookieJar):
+        in_memory_sqlite_cookie_jar:SqliteCookieJar):
         '''
         tests to see if iter() works after creating a database,
         inserting a few rows and then calling iter()
-        :param sqlite_cookie_jar: a sqlite cookie jar object created with a database
+        :param in_memory_sqlite_cookie_jar: a sqlite cookie jar object created with a database
         saved to a temporary folder somewhere. provided by a fixture
         '''
 
@@ -157,16 +157,16 @@ class TestSimple:
             rfc2109=False)
 
         # assert it starts off as empty
-        assert len(sqlite_cookie_jar) == 0
+        assert len(in_memory_sqlite_cookie_jar) == 0
 
         # add the two cookies
-        sqlite_cookie_jar.set_cookies([cookie_one, cookie_two])
+        in_memory_sqlite_cookie_jar.set_cookies([cookie_one, cookie_two])
 
         # assert count is now 2
-        assert len(sqlite_cookie_jar) == 2
+        assert len(in_memory_sqlite_cookie_jar) == 2
 
         # now test iter(), it SHOULD be in order, so cookie_one and then cookie_two
-        iter_list = list(iter(sqlite_cookie_jar))
+        iter_list = list(iter(in_memory_sqlite_cookie_jar))
 
         assert len(iter_list) == 2
         assert_cookie_equality(iter_list[0], cookie_one)
