@@ -124,6 +124,17 @@ f'''
 SELECT * FROM "{TABLE_NAME_V1}"
 LIMIT 1000 OFFSET {{}}'''
 
+
+'''
+a SQL statement that will return all of the cookies that match the
+given domain.
+'''
+SELECT_ALL_FROM_COOKIE_TABLE_DOMAIN_STATEMENT:str = \
+f'''
+SELECT * FROM "{TABLE_NAME_V1}"
+WHERE domain == :domain
+'''
+
 '''
 SQL statement to turn foreign keys on
 see https://www3.sqlite.org/quirks.html#foreign_key_enforcement_is_off_by_default

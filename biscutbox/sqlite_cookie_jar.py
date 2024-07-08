@@ -6,6 +6,7 @@ import http
 import json
 import logging
 import sqlite3
+import time
 import typing
 import urllib.request
 
@@ -32,6 +33,13 @@ class SqliteCookieJar(CookieJar):
 
         # call superclass
         super().__init__(policy)
+
+        # python's cookiejar / cookie policy implementation is just updating this class instance variable _now
+        # in various spots to check for expiry, rather than you know just using `time.time()`, and now
+        # we have to worry about keeping these in sync?
+        # so update it here for now
+        self._now:int = int(time.time())
+        self._policy._now = self._now
 
         self.database_path:PathLike = database_path
         self.sqlite_connection:sqlite3.Connection|None = None
@@ -109,12 +117,13 @@ class SqliteCookieJar(CookieJar):
 
 
     @typing.override
-    def _cookies_for_domain(self, domain:str, request:urllib.request.Request) -> list[Cookie]:
+    def _cookies_for_domain(self, domain, request):
         '''
         override of a private method , that returns the cookies for a given domain
 
         all overrides of private methods are fragile and are prone to breakage if the internals of http.cookiejar.CookeJar change
 
+        this performs database I/O by looking up cookies for the given domain
 
         :param domain: the domain to get the cookies from
         :param request: The request object (usually a urllib.request.Request instance) must support the method get_full_url()
@@ -124,7 +133,47 @@ class SqliteCookieJar(CookieJar):
         (see CookiePolicy.domain_return_ok)
 
         '''
-        pass
+
+        # update the semi global 'now' variable to check for expiry
+        self._policy._now = self._now = int(time.time())
+
+
+        # check the policy first
+        if not self._policy.domain_return_ok(domain, request):
+            return list()
+
+        logger.debug("Checking the domain `%s` for cookies to return", domain)
+
+        result_list = list()
+
+        # make the database query for all cookies under this domain, then we will filter them
+        # out based on the policies
+        with self._get_sqlite3_database_cursor() as cursor:
+
+            param_dict = {"domain": domain}
+            cursor.execute(
+                sql_statements.SELECT_ALL_FROM_COOKIE_TABLE_DOMAIN_STATEMENT,
+                param_dict)
+
+            while (iter_row := cursor.fetchone()) != None:
+
+                tmp_cookie = self._cookie_from_sqlite_row(iter_row)
+
+                # check the cookie policy and if both pass, add it to the result list
+                # the default policy will call `path_return_ok` which checks the full URL on the `request` parameter
+                # and 'return_ok" checks `return_ok_port`, `return_ok_verifiability`, `return_ok_secure`,
+                # `return_ok_expires`, `return_ok_domain`, `return_ok_version`
+                if (self._policy.path_return_ok(tmp_cookie.path, request)
+                    and self._policy.return_ok(tmp_cookie, request)):
+
+                    result_list.append(tmp_cookie)
+                else:
+                    logger.debug("cookie with name `%s` failed one or both of the policy checks, not returning",
+                        tmp_cookie.name)
+
+        logger.debug("returning `%s` cookies", len(result_list))
+
+        return result_list
 
 
     @typing.override
@@ -173,11 +222,6 @@ class SqliteCookieJar(CookieJar):
                 param_dict_list.append(iter_param_dict)
 
             cursor.executemany(sql_statements.INSERT_COOKIE_STATEMENT, param_dict_list)
-
-
-    @typing.override
-    def _cookies_for_domain(self, domain, request):
-        pass
 
     @typing.override
     def _cookies_for_request(self, request):
