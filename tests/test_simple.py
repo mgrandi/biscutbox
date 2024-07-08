@@ -3,9 +3,11 @@ from tests.fixtures import \
     database_path,
     sqlite_cookie_jar,
     giant_list_of_cookies,
-    giant_cookiejar_jsonl_path
+    giant_cookiejar_jsonl_path,
+    in_memory_sqlite_cookie_jar
 )
 from biscutbox.sqlite_cookie_jar import SqliteCookieJar
+from biscutbox.sql_statements import SELECT_ALL_FROM_COOKIE_TABLE_BATCH_SIZE
 from tests.test_utilities import assert_cookie_equality
 
 import pathlib
@@ -170,4 +172,67 @@ class TestSimple:
         assert_cookie_equality(iter_list[0], cookie_one)
         assert_cookie_equality(iter_list[1], cookie_two)
 
+    def test_iter_with_greater_than_batch_size(
+        self,
+        in_memory_sqlite_cookie_jar:SqliteCookieJar):
+        '''
+        a test where we insert more than the 'get all results' batch size of cookies
+        and then make sure iter() returns all of them and stops when it should
 
+        '''
+
+        multiplier = 3
+        number_of_cookies = SELECT_ALL_FROM_COOKIE_TABLE_BATCH_SIZE * multiplier
+
+        # create and add cookies to the database
+        for iter_group in range(multiplier):
+
+            cookie_list = []
+
+            for i in range(SELECT_ALL_FROM_COOKIE_TABLE_BATCH_SIZE):
+
+                # each cookie's name and value has the group
+                # and the current number in that group
+                tmp_cookie = Cookie(
+                    version=0,
+                    name=f"a-{iter_group}-{i}",
+                    value=f"b-{iter_group}-{i}",
+                    port=None,
+                    port_specified=False,
+                    domain="example.com",
+                    domain_specified=False,
+                    domain_initial_dot=False,
+                    path="/",
+                    path_specified=True,
+                    secure=False,
+                    expires=None,
+                    discard=True,
+                    comment=None,
+                    comment_url=None,
+                    rest={},
+                    rfc2109=False)
+
+                cookie_list.append(tmp_cookie)
+
+            in_memory_sqlite_cookie_jar.set_cookies(cookie_list)
+
+        # now iterate over them and assert that iter works as expected when
+        # you have more cookies than the batch size
+        counter = 0
+        the_iterator = iter(in_memory_sqlite_cookie_jar)
+        for iter_group in range(multiplier):
+            for i in range(SELECT_ALL_FROM_COOKIE_TABLE_BATCH_SIZE):
+
+                counter += 1
+                # get next cookie
+                current_cookie = next(the_iterator)
+
+                # assert the name and value matches what we created
+                assert current_cookie.name == f"a-{iter_group}-{i}"
+                assert current_cookie.value == f"b-{iter_group}-{i}"
+
+        # assert that the iterator returned the correct number of cookies
+        assert counter == number_of_cookies
+
+        # assert the total number of cookies in the database also matches
+        assert len(in_memory_sqlite_cookie_jar) == number_of_cookies
