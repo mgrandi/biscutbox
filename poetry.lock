@@ -79,6 +79,21 @@ dev = ["pre-commit", "tox"]
 testing = ["pytest", "pytest-benchmark"]
 
 [[package]]
+name = "publicsuffixlist"
+version = "1.0.2.20240714"
+description = "publicsuffixlist implement"
+optional = false
+python-versions = ">=3.5"
+files = [
+    {file = "publicsuffixlist-1.0.2.20240714-py2.py3-none-any.whl", hash = "sha256:a7f87fc01aa1f0f3ec6fdcdcc9e68922fd15de58fc3333b841c2535bc40452f9"},
+    {file = "publicsuffixlist-1.0.2.20240714.tar.gz", hash = "sha256:584ea0339fcd8375b9692f1dbbc6b4051b2b9b5a4c863b88902c7ec02b3928dc"},
+]
+
+[package.extras]
+readme = ["pandoc"]
+update = ["requests"]
+
+[[package]]
 name = "pytest"
 version = "8.2.2"
 description = "pytest: simple powerful testing with Python"
@@ -124,17 +139,6 @@ files = [
 ]
 
 [[package]]
-name = "tld"
-version = "0.13"
-description = "Extract the top-level domain (TLD) from the URL given."
-optional = false
-python-versions = ">=3.7, <4"
-files = [
-    {file = "tld-0.13-py2.py3-none-any.whl", hash = "sha256:f75b2be080f767ed17c2338a339eaa4fab5792586319ca819119da252f9f3749"},
-    {file = "tld-0.13.tar.gz", hash = "sha256:93dde5e1c04bdf1844976eae440706379d21f4ab235b73c05d7483e074fb5629"},
-]
-
-[[package]]
 name = "types-python-dateutil"
 version = "2.9.0.20240316"
 description = "Typing stubs for python-dateutil"
@@ -162,4 +166,4 @@ test = ["pytest (>=6.0.0)", "setuptools (>=65)"]
 [metadata]
 lock-version = "2.0"
 python-versions = "^3.12"
-content-hash = "16907bfe1530eebac57be2d089776b44e9da1586f97a4a8f33190ada440bacf1"
+content-hash = "e7c26eaae090b9d62f25aa03c50d5390676db74deb53cd478ac32d9c17de9ede"
