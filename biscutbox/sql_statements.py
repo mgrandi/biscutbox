@@ -145,6 +145,18 @@ WHERE domain == :domain
 '''
 
 '''
+a SQL statement that will return all of the cookies that match the
+given domain using sqlite LIKE
+see https://sqlite.org/lang_expr.html#the_like_glob_regexp_match_and_extract_operators
+
+'''
+SELECT_ALL_FROM_COOKIE_TABLE_DOMAIN_LIKE_STATEMENT:str = \
+f'''
+SELECT * FROM "{TABLE_NAME_V1}"
+WHERE domain LIKE :domain_pattern
+'''
+
+'''
 SQL statement to turn foreign keys on
 see https://www3.sqlite.org/quirks.html#foreign_key_enforcement_is_off_by_default
 '''

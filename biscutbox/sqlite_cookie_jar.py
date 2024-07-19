@@ -1,5 +1,5 @@
 from contextlib import contextmanager
-from http.cookiejar import CookieJar, CookiePolicy, Cookie
+from http.cookiejar import CookieJar, CookiePolicy, Cookie, request_host
 from os import PathLike
 import email.message
 import http
@@ -10,6 +10,7 @@ import time
 import typing
 import urllib.request
 
+import publicsuffixlist
 from biscutbox import sql_statements as sql_statements
 
 logger = logging.getLogger(__name__)
@@ -31,6 +32,8 @@ class SqliteCookieJar(CookieJar):
 
         # call superclass
         super().__init__(policy)
+
+        self._public_suffix_list = publicsuffixlist.PublicSuffixList()
 
         # python's cookiejar / cookie policy implementation is just updating this class instance variable _now
         # in various spots to check for expiry, rather than you know just using `time.time()`, and now
@@ -175,6 +178,90 @@ class SqliteCookieJar(CookieJar):
 
         return result_list
 
+    @typing.override
+    def _cookies_for_request(self, request:urllib.request.Request) -> list[Cookie]:
+        '''
+        override of a private method , that returns the cookies for a given domain
+
+        all overrides of private methods are fragile and are prone to breakage if the internals of http.cookiejar.CookeJar change
+
+        this performs database I/O by looking up cookies for the given domain
+
+        this will return a list of cookies to return for a given request
+
+        :param request: the Request that we want the cookies for
+        :return: a list of Cookie objects
+
+        '''
+
+
+        # so, the original implementation of this seems to just iterate over the cookies dictionary
+        # and then call `_cookies_for_domain` on each domain. That is incredibly slow, however this is accurate
+        # since there are various cookie rules around cookies and domains, like a cookie for domain
+        # `.twitter.com` versus `twitter.com` versus `a.twitter.com`.
+        # here, we are utilizing the index on the cookie table and using the sqlite LIKE operator to
+        # get cookies for all domains that contain the request domain, and then we will pass those to `_cookies_for_domain`
+        # to do the fine grained filtering.
+
+
+        # get all the cookies that match the glob of the "private suffix", aka
+        # the lowest level domain that a user can register
+        # this is extremely complicated so we use a library for this, see https://publicsuffix.org
+        # a.example.com -> private suffix is example.com
+        # a.example.co.uk -> private suffix is example.co.uk
+        # we also need to check to make sure that we aren't returning cookies for top level domains
+        # as that is bad form
+
+        hostname = request_host(request)
+        private_suffix = self._public_suffix_list.privatesuffix(hostname)
+
+        if not private_suffix or self._public_suffix_list.is_public(private_suffix):
+            # either invalid or a public suffix (like `com`) which means we we don't want to return anything
+            # (don't want websites setting a cookie for a TLD and having it be sent to every website under
+            # that TLD)
+
+            logger.debug("for the hostname `%s`, the private suffix `%s` is either None or a public suffix, returning empty list",
+                hostname, private_suffix)
+
+            return list()
+
+        result_list = list()
+
+
+        # make the database query for all cookies under this domain, then we will filter them
+        # out based on the policies
+        with self._get_sqlite3_database_cursor() as cursor:
+
+            search_term = f"%{private_suffix}"
+
+            logger.debug("_cookie_for_request with full url `%s`, searching for cookies with the glob `%s`",
+                hostname, search_term)
+
+            param_dict = {"domain_pattern": search_term}
+
+            cursor.execute(
+                sql_statements.SELECT_ALL_FROM_COOKIE_TABLE_DOMAIN_LIKE_STATEMENT,
+                param_dict)
+
+
+            while (iter_row := cursor.fetchone()) != None:
+
+                tmp_cookie = self._cookie_from_sqlite_row(iter_row)
+
+                # check the cookie policy and if both pass, add it to the result list
+                # the default policy will call `path_return_ok` which checks the full URL on the `request` parameter
+                # and 'return_ok" checks `return_ok_port`, `return_ok_verifiability`, `return_ok_secure`,
+                # `return_ok_expires`, `return_ok_domain`, `return_ok_version`
+                if (self._policy.path_return_ok(tmp_cookie.path, request)
+                    and self._policy.return_ok(tmp_cookie, request)):
+
+                    result_list.append(tmp_cookie)
+                else:
+                    logger.debug("cookie with name `%s` failed one or both of the policy checks, not returning",
+                        tmp_cookie.name)
+
+        return result_list
+
 
     @typing.override
     def set_cookie(self, cookie:Cookie):
@@ -223,9 +310,7 @@ class SqliteCookieJar(CookieJar):
 
             cursor.executemany(sql_statements.INSERT_COOKIE_STATEMENT, param_dict_list)
 
-    @typing.override
-    def _cookies_for_request(self, request):
-        pass
+
 
     @typing.override
     def clear(self, domain=None, path=None, name=None):
