@@ -46,6 +46,15 @@ CREATE TABLE IF NOT EXISTS "{TABLE_NAME_V1}"  (
 );
 '''
 
+CREATE_COOKIE_TABLE_DOMAIN_INDEX_STATEMENT:str = \
+f'''
+CREATE INDEX IF NOT EXISTS
+"domain_idx" ON {TABLE_NAME_V1}
+(
+    "domain"
+);
+'''
+
 '''
 A SQL statement to insert a http.cookiejar into the database
 '''

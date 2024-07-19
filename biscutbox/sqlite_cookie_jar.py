@@ -19,8 +19,6 @@ class SqliteCookieJar(CookieJar):
     a cookiejar that is backed by a SQLite database
     '''
 
-
-
     def __init__(self, database_path:PathLike, policy:CookiePolicy|None=None):
         '''
         constructor
@@ -107,11 +105,13 @@ class SqliteCookieJar(CookieJar):
 
         logger.debug("running create table statement")
 
-        cursor = self.sqlite_connection.cursor()
+        with self._get_sqlite3_database_cursor() as cursor:
 
-        cursor.execute(sql_statements.CREATE_TABLE_STATEMENT_COOKIE_TABLE)
+            # create tables
+            cursor.execute(sql_statements.CREATE_TABLE_STATEMENT_COOKIE_TABLE)
 
-        cursor.close()
+            # create indexes
+            cursor.execute(sql_statements.CREATE_COOKIE_TABLE_DOMAIN_INDEX_STATEMENT)
 
         logger.debug("create table statement finished")
 
