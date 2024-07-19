@@ -117,7 +117,7 @@ class SqliteCookieJar(CookieJar):
 
 
     @typing.override
-    def _cookies_for_domain(self, domain, request):
+    def _cookies_for_domain(self, domain:str, request:urllib.request.Request) -> list[Cookie]:
         '''
         override of a private method , that returns the cookies for a given domain
 
