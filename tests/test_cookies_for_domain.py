@@ -50,7 +50,7 @@ class TestCookiesForDomain():
         assert len(cookie_list) == 1
         assert_cookie_equality(cookie_list[0], test_cookie)
 
-    def test_no_poliy_two_cookies_different_domains(
+    def test_no_policy_two_cookies_different_domains(
         self,
         in_memory_sqlite_cookie_jar:SqliteCookieJar):
         '''
@@ -87,3 +87,4 @@ class TestCookiesForDomain():
         # we should only get one
         assert len(domain_two_result) == 1
         assert_cookie_equality(domain_two_result[0], test_cookie_two)
+
