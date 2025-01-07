@@ -1,7 +1,7 @@
 from tests.fixtures import \
 (
-    database_path,
-    sqlite_cookie_jar,
+    tempfolder_database_path,
+    file_on_disk_sqlite_cookie_jar,
     giant_list_of_cookies,
     giant_cookiejar_jsonl_path,
     in_memory_sqlite_cookie_jar

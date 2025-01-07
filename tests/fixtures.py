@@ -16,7 +16,7 @@ logging.basicConfig(level="DEBUG", format="%(asctime)s %(threadName)-10s %(name)
 
 
 @pytest.fixture(scope="function")
-def database_path(tmp_path_factory:pytest.TempPathFactory) -> pathlib.Path:
+def tempfolder_database_path(tmp_path_factory:pytest.TempPathFactory) -> pathlib.Path:
     ''' a fixture to return a path suitable to store the database in. this will use a temporary path
     provided by the tmp_path_factory fixture, and is scoped currently to be 'function', so it will be a new database
     every time.
@@ -26,6 +26,15 @@ def database_path(tmp_path_factory:pytest.TempPathFactory) -> pathlib.Path:
     fn = tmp_path_factory.mktemp("data") / "cookiedb.sqlite3"
 
     return fn
+
+@pytest.fixture
+def hardcoded_database_path() -> pathlib.Path:
+    ''' return a hardcoded path
+    '''
+    return pathlib.Path("~/Temp/biscutboxtemp/cookiedb.sqlite3").expanduser()
+
+
+
 
 @pytest.fixture
 def giant_cookiejar_jsonl_path() -> pathlib.Path:
@@ -126,7 +135,7 @@ def giant_list_of_cookies(giant_cookiejar_jsonl_path:pathlib.Path) -> list[Cooki
 
 
 @pytest.fixture
-def in_memory_sqlite_cookie_jar(database_path) -> SqliteCookieJar:
+def in_memory_sqlite_cookie_jar() -> SqliteCookieJar:
     ''' a fixture to set up a SqliteCookieJar with a database that is only in RAM
     '''
 
@@ -140,12 +149,12 @@ def in_memory_sqlite_cookie_jar(database_path) -> SqliteCookieJar:
 
 
 @pytest.fixture
-def sqlite_cookie_jar(database_path) -> SqliteCookieJar:
+def file_on_disk_sqlite_cookie_jar(hardcoded_database_path:pathlib.Path) -> SqliteCookieJar:
     ''' a fixture to set up a SqliteCookieJar with a database saved to a path
     returned by the database_path fixture
     '''
 
-    cj = SqliteCookieJar(database_path=database_path)
+    cj = SqliteCookieJar(database_path=hardcoded_database_path)
     cj.connect()
 
     yield cj
