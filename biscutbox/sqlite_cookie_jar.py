@@ -314,7 +314,36 @@ class SqliteCookieJar(CookieJar):
 
     @typing.override
     def clear(self, domain=None, path=None, name=None):
-        pass
+        '''
+        Clear some cookies.
+
+        If invoked without arguments, clear all cookies. If given a single argument,
+        only cookies belonging to that domain will be removed. If given two arguments,
+        cookies belonging to the specified domain and URL path are removed.
+        If given three arguments, then the cookie with the specified domain, path and name is removed.
+
+        Raises KeyError if no matching cookie exists.
+
+        Mark note: this api intereface is worded weird, you need domain, domain + path, domain + path + name
+        https://github.com/python/cpython/blob/fb8bb36f56e4fc2948cd404337b6b316b78c86aa/Lib/http/cookiejar.py#L1692
+        '''
+
+        # copied the if...elif.. else structure from python3 cookiejar.py
+        if name is not None:
+            if (domain is None) or (path is None):
+                raise ValueError(
+                    "domain and path must be given to remove a cookie by name")
+            pass
+        elif path is not None:
+            if domain is None:
+                raise ValueError(
+                    "domain must be given to remove cookies by path")
+            pass
+        elif domain is not None:
+            pass
+        else:
+            # no arguments, clear all cookies
+            self._clear_all_cookies()
 
     @typing.override
     def clear_session_cookies(self):
@@ -323,6 +352,19 @@ class SqliteCookieJar(CookieJar):
     @typing.override
     def clear_expired_cookies(self):
         pass
+
+    def _clear_all_cookies(self):
+        '''
+        delete all cookies
+        '''
+
+        with self._get_sqlite3_database_cursor() as cursor:
+
+            logger.debug("removing all cookies from the database")
+
+            cursor.execute(sql_statements.DELETE_ALL_FROM_COOKIE_TABLE)
+
+            logger.debug("deletion of all cookies completed")
 
     def __iter__(self):
         '''

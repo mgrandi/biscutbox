@@ -173,3 +173,11 @@ TURN_WAL_MODE_ON:str = \
 f'''
 PRAGMA journal_mode=WAL;
 '''
+
+'''
+SQL statement to delete all cookies from the cookie table
+'''
+DELETE_ALL_FROM_COOKIE_TABLE:str = \
+f'''
+DELETE FROM "{TABLE_NAME_V1}"
+'''
