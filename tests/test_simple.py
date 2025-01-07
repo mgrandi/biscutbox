@@ -1,7 +1,8 @@
 from tests.fixtures import \
 (
-    database_path,
-    sqlite_cookie_jar,
+    hardcoded_database_path,
+    tempfolder_database_path,
+    file_on_disk_sqlite_cookie_jar,
     giant_list_of_cookies,
     giant_cookiejar_jsonl_path,
     in_memory_sqlite_cookie_jar
@@ -13,6 +14,8 @@ from tests.test_utilities import assert_cookie_equality
 import pathlib
 import itertools
 from http.cookiejar import Cookie
+
+import pytest
 
 class TestSimple:
 
@@ -61,6 +64,29 @@ class TestSimple:
 
 
         assert len(in_memory_sqlite_cookie_jar) >= 0
+
+
+    def test_load_giant_cookie_file_nonmemory(
+        self,
+        file_on_disk_sqlite_cookie_jar:SqliteCookieJar,
+        giant_list_of_cookies:list[Cookie]):
+        '''
+        TODO: maybe remove this test in the future, i just want to see the database
+        '''
+
+
+        assert file_on_disk_sqlite_cookie_jar != None
+
+        assert giant_list_of_cookies != None
+
+        for iter_batch in itertools.batched(giant_list_of_cookies, 1000):
+
+            file_on_disk_sqlite_cookie_jar.set_cookies(iter_batch)
+
+        assert file_on_disk_sqlite_cookie_jar._policy != None
+
+
+        assert len(file_on_disk_sqlite_cookie_jar) >= 0
 
     def test_insert_rows_and_test_len(
         self,
