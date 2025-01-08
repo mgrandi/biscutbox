@@ -349,7 +349,6 @@ class SqliteCookieJar(CookieJar):
     def clear_session_cookies(self):
         pass
 
-    @typing.override
     def clear_expired_cookies(self):
         pass
 
