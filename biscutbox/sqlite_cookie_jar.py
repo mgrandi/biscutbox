@@ -347,8 +347,24 @@ class SqliteCookieJar(CookieJar):
             self._clear_all_cookies()
 
     @typing.override
-    def clear_session_cookies(self):
-        pass
+    def clear_session_cookies(self) -> None:
+        '''
+        Discard all session cookies.
+
+        Discards all contained cookies that have a true discard attribute (usually because they had either
+        no max-age or expires cookie-attribute, or an explicit discard cookie-attribute).
+        For interactive browsers, the end of a session usually corresponds to closing the browser window.
+
+        Note that the save() method won’t save session cookies anyway, unless you ask otherwise by passing a
+        true ignore_discard argument
+        '''
+
+        with self._get_sqlite3_database_cursor() as cursor:
+            logger.debug("Removing all session cookies")
+
+            cursor.execute(sql_statements.DELETE_ALL_SESSION_COOKIES_FROM_COOKIE_TABLE)
+
+            logger.debug("deletion of session cookies complete")
 
     def clear_expired_cookies(self):
         pass

@@ -190,3 +190,11 @@ DELETE_ALL_FROM_COOKIE_TABLE_BY_DOMAIN:str = \
 f'''
 DELETE FROM "{TABLE_NAME_V1}" WHERE domain == :domain
 '''
+
+'''
+SQL statement to delete all session cookies from the cookie table
+'''
+DELETE_ALL_SESSION_COOKIES_FROM_COOKIE_TABLE:str = \
+f'''
+DELETE FROM "{TABLE_NAME_V1}" WHERE discard == 1
+'''
