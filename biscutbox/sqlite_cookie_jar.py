@@ -344,18 +344,24 @@ class SqliteCookieJar(CookieJar):
             if (domain is None) or (path is None):
                 raise ValueError(
                     "domain and path must be given to remove a cookie by name")
-            pass
+            self._clear_cookies_given_domain_path_and_name(domain=domain, path=path, name=name)
+            return
+
         elif path is not None:
             if domain is None:
                 raise ValueError(
                     "domain must be given to remove cookies by path")
-            pass
+            self._clear_cookies_given_domain_and_path(domain=domain, path=path)
+            return
+
         elif domain is not None:
             self._clear_cookies_given_domain(domain=domain)
+            return
 
         else:
             # no arguments, clear all cookies
             self._clear_all_cookies()
+            return
 
     @typing.override
     def clear_session_cookies(self) -> None:
@@ -429,6 +435,13 @@ class SqliteCookieJar(CookieJar):
         self.clear_expired_cookies_from_time(expires_time=expires_time_val)
 
 
+    def _clear_cookies_given_domain_path_and_name(self, domain:str, path:str, name:str) -> None:
+
+        pass
+
+    def _clear_cookies_given_domain_and_path(self, domain:str, path:str) -> None:
+
+        pass
 
     def _clear_cookies_given_domain(self, domain:str):
         '''
