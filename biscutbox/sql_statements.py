@@ -109,6 +109,16 @@ the key to the value of the count() SQL statement
 COUNT_ENTRIES_IN_COOKIE_TABLE_KEY = "count_value"
 
 '''
+SQL statement that retrieves the number of rows modified by the most recent update/insert/delete
+https://www.sqlite.org/c3ref/changes.html
+https://www.sqlite.org/lang_corefunc.html#changes
+'''
+ROWS_MODIFIED:str = \
+f'''
+SELECT changes();
+'''
+
+'''
 a SQL statement to count the number of entries in the
 v1 cookies table
 '''
@@ -197,4 +207,12 @@ SQL statement to delete all session cookies from the cookie table
 DELETE_ALL_SESSION_COOKIES_FROM_COOKIE_TABLE:str = \
 f'''
 DELETE FROM "{TABLE_NAME_V1}" WHERE discard == 1
+'''
+
+'''
+SQL statement to delete all expired cookies from the cookie table
+'''
+DELETE_ALL_EXPIRED_COOKIES_FROM_COOKIE_TABLE:str = \
+f'''
+DELETE FROM "{TABLE_NAME_V1}" WHERE (expires notnull AND expires <= :expires_val)
 '''

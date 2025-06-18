@@ -70,6 +70,17 @@ class SqliteCookieJar(CookieJar):
                     logger.debug("sqlite3 cursor closing")
                     cur.close()
 
+    def _get_changed_rows(self, cursor:sqlite3.Cursor) -> int:
+        '''
+        get the number of changed rows
+        :param cursor: the cursor from an existing transaction
+        :returns: the number of changed rows according to sqlite
+        '''
+
+        cursor.execute(sql_statements.ROWS_MODIFIED)
+        changed_rows_result = cursor.fetchone()
+        return changed_rows_result["changes()"]
+
     def connect(self):
         '''
         connects to the database
@@ -364,10 +375,60 @@ class SqliteCookieJar(CookieJar):
 
             cursor.execute(sql_statements.DELETE_ALL_SESSION_COOKIES_FROM_COOKIE_TABLE)
 
-            logger.debug("deletion of session cookies complete")
+            changed_rows = self._get_changed_rows(cursor)
 
-    def clear_expired_cookies(self):
-        pass
+            logger.debug("deletion of session cookies complete, deleted `%s` cookies", changed_rows)
+
+
+    def clear_expired_cookies_from_time(self, expires_time:int) -> None:
+        '''
+        Discard all expired cookies, where `cookie.expires` is not null and whose `expires` value is
+        less than the passed in parameter :expires_time:
+
+        :param expires_time: the time to compare the cookie's `expires` time with when deciding what cookie to clear out
+        '''
+
+
+        with self._get_sqlite3_database_cursor() as cursor:
+            logger.debug("Removing all expired cookies from the database whose expiry is older than `%s`", expires_time)
+
+            param_dict = {"expires_val": expires_time}
+
+            cursor.execute(sql_statements.DELETE_ALL_EXPIRED_COOKIES_FROM_COOKIE_TABLE, param_dict)
+
+            changed_rows = self._get_changed_rows(cursor)
+
+            logger.debug("deletion of expired cookies completed, deleted `%s` cookies", changed_rows)
+
+
+    @typing.override
+    def clear_expired_cookies(self) -> None:
+        '''
+        Discard all expired cookies (where `cookie.expires` is not null and whose value is less than the current date)
+
+        Note: this diverges heavily from the base cookiejar implementation. The base implementation iterates over
+        every cookie in the cookie jar, and asks each cookie "if it is expired" and if true, it will remove it
+
+        But obviously this is extremely not scalable if the cookiejar is huge, as it will have to do a O(N) number of
+        checks.
+
+        the implementation of `cookie.is_expired(time)` is basically
+        if (expired != None && expired <= now)
+            return True
+        return False
+
+        so we can just implement this using a sqlite statement and have this be much more performant with huge
+        cookie jars
+        '''
+
+
+        # just call the 'new' method we created (for unit tests) with `time.time()`
+        # the expires attribute appears to be an unix timestamp, seconds since the epoch. `time.time()` returns
+        # a floating point number but the parsing seems to only care about whole seconds
+        expires_time_val = int(time.time())
+        self.clear_expired_cookies_from_time(expires_time=expires_time_val)
+
+
 
     def _clear_cookies_given_domain(self, domain:str):
         '''
