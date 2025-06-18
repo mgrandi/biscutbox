@@ -32,6 +32,136 @@ class TestClearExpired():
     only uses the output of `time.time()` which you can't really unit test.
     '''
 
+    def test_clear_expired_cookies_only_null(
+        self,
+        in_memory_sqlite_cookie_jar:SqliteCookieJar):
+        ''' test clear_expired_cookies where cookies that have a null
+        `expired` value are ignored
+        '''
+
+        # this has to be dynamic since _cookies_for_domain will not return expired cookies
+        expiry_time = int(time.time()) + 100
+        expiry_time_cookie_one = None
+        expiry_time_cookie_two = None
+
+        logger.debug("expiry time for cookie 1: `%s`, cookie 2: `%s`", expiry_time_cookie_one, expiry_time_cookie_two)
+
+        domain_one = "example.com"
+        test_cookie_one = create_simple_cookie("a", "b", domain_one)
+        test_cookie_one.expires = expiry_time_cookie_one
+        req_domain_one = create_dummy_request(f"https://{domain_one}", "GET")
+
+        domain_one = "example.com"
+        test_cookie_one = create_simple_cookie("a", "b", domain_one)
+        test_cookie_one.expires = expiry_time_cookie_one
+        req_domain_one = create_dummy_request(f"https://{domain_one}", "GET")
+
+        domain_two = "a.example.com"
+        test_cookie_two = create_simple_cookie("c", "d", domain_two)
+        req_domain_two = create_dummy_request(f"https://{domain_two}", "GET")
+        test_cookie_two.expires = expiry_time_cookie_two
+
+        assert test_cookie_one.expires == expiry_time_cookie_one
+        assert test_cookie_two.expires == expiry_time_cookie_two
+
+        # assert jar is empty
+        assert len(in_memory_sqlite_cookie_jar) == 0
+
+        # insert cookies
+        in_memory_sqlite_cookie_jar.set_cookies([test_cookie_one, test_cookie_two])
+
+        # assert jar has 2 cookies
+        assert len(in_memory_sqlite_cookie_jar) == 2
+
+        # assert we can fetch the cookies we inserted
+        domain_one_result = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_one, req_domain_one)
+        assert len(domain_one_result) == 1
+        assert_cookie_equality(domain_one_result[0], test_cookie_one)
+
+        domain_two_result = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_two, req_domain_two)
+        assert len(domain_two_result) == 1
+        assert_cookie_equality(domain_two_result[0], test_cookie_two)
+
+        # expire session cookies, given the base expiry_time, which would get rid of both cookies
+        # but they have no expiration time so it won't
+        in_memory_sqlite_cookie_jar.clear_expired_cookies_from_time(expiry_time)
+
+        # assert jar has 2 cookies
+        assert len(in_memory_sqlite_cookie_jar) == 2
+
+        # cookie 1 should still be here, no expiration
+        domain_one_result_after1 = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_one, req_domain_one)
+        assert len(domain_one_result_after1) == 1
+        assert_cookie_equality(domain_one_result_after1[0], test_cookie_one)
+
+        # cookie 2 should still be here
+        domain_two_result_after1 = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_two, req_domain_two)
+        assert len(domain_two_result_after1) == 1
+        assert_cookie_equality(domain_two_result_after1[0], test_cookie_two)
+
+
+
+    def test_clear_expired_ignoring_null_cookies_mixed(
+        self,
+        in_memory_sqlite_cookie_jar:SqliteCookieJar):
+        ''' test clear_expired_cookies where cookies that have a null
+        `expired` value are ignored, mixed with cookies that do have an expiration
+        '''
+
+        # this has to be dynamic since _cookies_for_domain will not return expired cookies
+        expiry_time = int(time.time()) + 100
+        expiry_time_cookie_one = None
+        expiry_time_cookie_two = expiry_time
+
+        logger.debug("expiry time for cookie 1: `%s`, cookie 2: `%s`", expiry_time_cookie_one, expiry_time_cookie_two)
+
+        domain_one = "example.com"
+        test_cookie_one = create_simple_cookie("a", "b", domain_one)
+        test_cookie_one.expires = expiry_time_cookie_one
+        req_domain_one = create_dummy_request(f"https://{domain_one}", "GET")
+
+        domain_two = "a.example.com"
+        test_cookie_two = create_simple_cookie("c", "d", domain_two)
+        req_domain_two = create_dummy_request(f"https://{domain_two}", "GET")
+        test_cookie_two.expires = expiry_time_cookie_two
+
+        assert test_cookie_one.expires == expiry_time_cookie_one
+        assert test_cookie_two.expires == expiry_time_cookie_two
+
+        # assert jar is empty
+        assert len(in_memory_sqlite_cookie_jar) == 0
+
+        # insert cookies
+        in_memory_sqlite_cookie_jar.set_cookies([test_cookie_one, test_cookie_two])
+
+        # assert jar has 2 cookies
+        assert len(in_memory_sqlite_cookie_jar) == 2
+
+        # assert we can fetch the cookies we inserted
+        domain_one_result = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_one, req_domain_one)
+        assert len(domain_one_result) == 1
+        assert_cookie_equality(domain_one_result[0], test_cookie_one)
+
+        domain_two_result = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_two, req_domain_two)
+        assert len(domain_two_result) == 1
+        assert_cookie_equality(domain_two_result[0], test_cookie_two)
+
+        # expire session cookies, given the expiry_time to get rid of cookie 2
+        in_memory_sqlite_cookie_jar.clear_expired_cookies_from_time(expiry_time_cookie_two)
+
+        # assert jar has 1 cookies
+        assert len(in_memory_sqlite_cookie_jar) == 1
+
+        # cookie 1 should still be here, no expiration
+        domain_one_result_after1 = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_one, req_domain_one)
+        assert len(domain_one_result_after1) == 1
+        assert_cookie_equality(domain_one_result_after1[0], test_cookie_one)
+
+        # cookie 2 should be gone
+        domain_two_result_after1 = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_two, req_domain_two)
+        assert len(domain_two_result_after1) == 0
+
+
     def test_clear_expired_cookies_simple(
         self,
         in_memory_sqlite_cookie_jar:SqliteCookieJar):
@@ -51,7 +181,6 @@ class TestClearExpired():
         test_cookie_one.expires = expiry_time_cookie_one
         req_domain_one = create_dummy_request(f"https://{domain_one}", "GET")
 
-        # expires 10 seconds past expiry_time
         domain_two = "a.example.com"
         test_cookie_two = create_simple_cookie("c", "d", domain_two)
         req_domain_two = create_dummy_request(f"https://{domain_two}", "GET")
