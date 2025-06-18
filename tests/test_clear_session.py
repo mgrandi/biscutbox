@@ -85,7 +85,7 @@ class TestClearSession():
         assert test_cookie_one.discard == True
         assert test_cookie_two.discard == False
 
-        ## assert jar is empty
+        # assert jar is empty
         assert len(in_memory_sqlite_cookie_jar) == 0
 
         # insert cookies
