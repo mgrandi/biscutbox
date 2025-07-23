@@ -440,8 +440,28 @@ class SqliteCookieJar(CookieJar):
         pass
 
     def _clear_cookies_given_domain_and_path(self, domain:str, path:str) -> None:
+        '''
+        clear cookies under a specific domain and path
+        :param domain: the domain whose cookies we want to clear
+        :param path: the path whose cookies we want to clear
 
-        pass
+        Note: this is for a specific domain, using string equality. The actual method
+        uses dictionary syntax. So calling this method with `example.com` will not delete
+        cookies for `a.example.com`
+        '''
+
+        if domain is None:
+            raise Exception("`domain` should not be None")
+        if path is None:
+            raise Exception("`path` should not be None")
+
+        with self._get_sqlite3_database_cursor() as cursor:
+            logger.debug("Removing all cookies from the database that match domain `%s` and path `%s`", domain, path)
+
+            param_dict = {"domain": domain, "path": path}
+            cursor.execute(sql_statements.DELETE_ALL_FROM_COOKIE_TABLE_BY_DOMAIN_PATH, param_dict)
+
+            logger.debug("deletion of cookies complete")
 
     def _clear_cookies_given_domain(self, domain:str):
         '''

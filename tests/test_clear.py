@@ -124,3 +124,77 @@ class TestClear():
         domain_two_result = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_two, req_domain_two)
         assert len(domain_two_result) == 1
         assert_cookie_equality(domain_two_result[0], test_cookie_two)
+
+
+    def test_clear_two_argument_domain_path_provided(
+        self,
+        in_memory_sqlite_cookie_jar:SqliteCookieJar):
+
+        domain_one = "example.com"
+        path_one = "/"
+        path_two = "/foo/bar"
+
+        test_cookie_one = create_simple_cookie("a", "b", domain_one)
+        test_cookie_one.path = path_one
+        test_cookie_two = create_simple_cookie("c", "d", domain_one)
+        test_cookie_two.path = path_two
+
+        assert test_cookie_one.path == path_one
+        assert test_cookie_two.path == path_two
+
+        req_domain_one = create_dummy_request(f"https://{domain_one}", "GET")
+        req_domain_two = create_dummy_request(f"https://{domain_one}{path_two}", "GET")
+
+        assert len(in_memory_sqlite_cookie_jar) == 0
+
+        in_memory_sqlite_cookie_jar.set_cookies([test_cookie_one, test_cookie_two])
+
+        # assert there are two cookies in the cookie jar
+        assert len(in_memory_sqlite_cookie_jar) == 2
+
+        # assert cookie is there with path `/`
+        pre_result_zero = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_one, req_domain_one)
+        assert len(pre_result_zero) == 1
+        assert_cookie_equality(pre_result_zero[0], test_cookie_one)
+
+        # assert cookie is there with path `/foo/bar`
+        # this will return both keys, since the cookie policy will consider paths as valid if
+        # one path is a subset of another, so since `/` is a valid subpath of `/foo/bar`, the
+        # first cookie with the path `/` will be returned when we have a request for `/foo/bar`
+        #
+        # i sort the results by path here to make assertions deterministic
+        pre_result_one = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_one, req_domain_two)
+        assert len(pre_result_one) == 2
+        pre_result_one_sorted = sorted(pre_result_one, key=lambda x: x.path)
+        assert_cookie_equality(pre_result_one_sorted[0], test_cookie_one)
+        assert_cookie_equality(pre_result_one_sorted[1], test_cookie_two)
+
+        # clear the cookie jar for one domain / path
+        in_memory_sqlite_cookie_jar.clear(
+            domain=domain_one,
+            path=path_one)
+
+        # assert we only have 1 left
+        assert len(in_memory_sqlite_cookie_jar) == 1
+
+        # first cookie, under the path `/` should be gone
+        result_zero = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_one, req_domain_one)
+        assert len(result_zero) == 0
+
+        # second cookie should still exist under /foo/bar path and request
+        result_one = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_one, req_domain_two)
+        assert len(result_one) == 1
+        assert_cookie_equality(result_one[0], test_cookie_two)
+
+        # clear the second cookie by the second path
+        in_memory_sqlite_cookie_jar.clear(
+            domain=domain_one,
+            path=path_two)
+
+        # cookie with path `/` should be gone
+        result_two = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_one, req_domain_one)
+        assert len(result_two) == 0
+
+        # cookie iwth path `/foo/bar/` should be gone
+        result_three = in_memory_sqlite_cookie_jar._cookies_for_domain(domain_one, req_domain_two)
+        assert len(result_three) == 0
