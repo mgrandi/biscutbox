@@ -182,8 +182,8 @@ class SqliteCookieJar(CookieJar):
 
                     result_list.append(tmp_cookie)
                 else:
-                    logger.debug("cookie with name `%s` failed one or both of the policy checks, not returning",
-                        tmp_cookie.name)
+                    logger.debug("cookie with name `%s` and path `%s` failed one or both of the policy checks, not returning",
+                        tmp_cookie.name, tmp_cookie.path)
 
         logger.debug("returning `%s` cookies", len(result_list))
 
