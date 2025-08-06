@@ -211,6 +211,18 @@ DELETE FROM "{TABLE_NAME_V1}" WHERE domain == :domain AND path == :path
 '''
 
 '''
+SQL statement to delete all cookies from the cookie table
+for a given cookie's name, domain and path
+'''
+DELETE_ALL_FROM_COOKIE_TABLE_BY_DOMAIN_PATH_NAME:str = \
+f'''
+DELETE FROM "{TABLE_NAME_V1}" WHERE
+domain == :domain
+AND path == :path
+AND name == :name
+'''
+
+'''
 SQL statement to delete all session cookies from the cookie table
 '''
 DELETE_ALL_SESSION_COOKIES_FROM_COOKIE_TABLE:str = \

@@ -436,8 +436,33 @@ class SqliteCookieJar(CookieJar):
 
 
     def _clear_cookies_given_domain_path_and_name(self, domain:str, path:str, name:str) -> None:
+        '''
+        clear cookies under a specific domain and path
+        :param domain: the domain whose cookies we want to clear
+        :param path: the path whose cookies we want to clear
 
-        pass
+        Note: this is for a specific domain, using string equality,
+        So calling this method with `example.com` will not delete
+        cookies for `a.example.com`
+        '''
+
+        if domain is None:
+            raise Exception("`domain` should not be None")
+        if path is None:
+            raise Exception("`path` should not be None")
+        if name is None:
+            raise Exception("`name` should not be None")
+
+        with self._get_sqlite3_database_cursor() as cursor:
+            logger.debug("Removing all cookies from the database that match domain `%s`, path `%s`, and name `%s`",
+                domain, path, name)
+
+            param_dict = {"domain": domain, "path": path, "name": name}
+            cursor.execute(sql_statements.DELETE_ALL_FROM_COOKIE_TABLE_BY_DOMAIN_PATH_NAME, param_dict)
+
+            changed_rows = self._get_changed_rows(cursor)
+
+            logger.debug("deletion of cookies complete, deleted `%s` cookies", changed_rows)
 
     def _clear_cookies_given_domain_and_path(self, domain:str, path:str) -> None:
         '''
@@ -445,8 +470,8 @@ class SqliteCookieJar(CookieJar):
         :param domain: the domain whose cookies we want to clear
         :param path: the path whose cookies we want to clear
 
-        Note: this is for a specific domain, using string equality. The actual method
-        uses dictionary syntax. So calling this method with `example.com` will not delete
+        Note: this is for a specific domain, using string equality
+        So calling this method with `example.com` will not delete
         cookies for `a.example.com`
         '''
 
@@ -461,15 +486,17 @@ class SqliteCookieJar(CookieJar):
             param_dict = {"domain": domain, "path": path}
             cursor.execute(sql_statements.DELETE_ALL_FROM_COOKIE_TABLE_BY_DOMAIN_PATH, param_dict)
 
-            logger.debug("deletion of cookies complete")
+            changed_rows = self._get_changed_rows(cursor)
+
+            logger.debug("deletion of cookies complete, deleted `%s` cookies", changed_rows)
 
     def _clear_cookies_given_domain(self, domain:str):
         '''
         clear cookies under a specific domain
         :param domain: the domain whose cookies we want to clear
 
-        Note: this is for a specific domain, using string equality. The actual method
-        uses dictionary syntax. So calling this method with `example.com` will not delete
+        Note: this is for a specific domain, using string equality,
+        So calling this method with `example.com` will not delete
         cookies for `a.example.com`
         '''
 
@@ -481,7 +508,9 @@ class SqliteCookieJar(CookieJar):
             param_dict = {"domain": domain}
             cursor.execute(sql_statements.DELETE_ALL_FROM_COOKIE_TABLE_BY_DOMAIN, param_dict)
 
-            logger.debug("deletion of cookies complete")
+            changed_rows = self._get_changed_rows(cursor)
+
+            logger.debug("deletion of cookies complete, deleted `%s` cookies", changed_rows)
 
 
     def _clear_all_cookies(self):
