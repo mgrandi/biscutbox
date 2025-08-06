@@ -154,9 +154,10 @@ class SqliteCookieJar(CookieJar):
 
         # check the policy first
         if not self._policy.domain_return_ok(domain, request):
+            logger.debug("domain `%s` failed policy, returning nothing", domain)
             return list()
 
-        logger.debug("Checking the domain `%s` for cookies to return", domain)
+        logger.debug("Checking the domain `%s` for cookies to return for request `%s` - `%s`", domain, request.method, request.full_url)
 
         result_list = list()
 
@@ -182,7 +183,7 @@ class SqliteCookieJar(CookieJar):
 
                     result_list.append(tmp_cookie)
                 else:
-                    logger.debug("cookie with name `%s` and path `%s` failed one or both of the policy checks, not returning",
+                    logger.debug("cookie with name `%s` path `%s`, failed one or both of the policy checks, not returning",
                         tmp_cookie.name, tmp_cookie.path)
 
         logger.debug("returning `%s` cookies", len(result_list))
