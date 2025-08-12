@@ -322,49 +322,87 @@ class CookieTests(unittest.TestCase):
         # RFC 2965
         pol = DefaultCookiePolicy(rfc2965=True)
 
+
+
+        def _assert_cookie_path_is_present(
+            cookiejar,
+            path,
+            domain):
+
+            tmp_request = urllib.request.Request(
+                f"http://www.acme.com{path}",
+                data=None,
+                headers={},
+                origin_req_host=None,
+                unverifiable=False,
+                method="GET")
+
+            cookie_list = cookiejar._cookies_for_domain(
+                domain=domain, request=tmp_request)
+
+            self.assertEqual(len(cookie_list), 1)
+            tmp_cookie = cookie_list[0]
+            self.assertEqual(tmp_cookie.path, path)
+
+
         #c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             interact_2965(c, "http://www.acme.com/", 'spam="bar"; Version="1"')
-            self.assertIn("/", c._cookies["www.acme.com"])
+            #self.assertIn("/", c._cookies["www.acme.com"])
+            _assert_cookie_path_is_present(c, path="/", domain="www.acme.com")
 
         # c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             interact_2965(c, "http://www.acme.com/blah", 'eggs="bar"; Version="1"')
-            self.assertIn("/", c._cookies["www.acme.com"])
+            # self.assertIn("/", c._cookies["www.acme.com"])
+            _assert_cookie_path_is_present(c, path="/", domain="www.acme.com")
+
 
         #c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             interact_2965(c, "http://www.acme.com/blah/rhubarb",
                           'eggs="bar"; Version="1"')
-            self.assertIn("/blah/", c._cookies["www.acme.com"])
+            # self.assertIn("/blah/", c._cookies["www.acme.com"])
+            _assert_cookie_path_is_present(c, path="/blah/", domain="www.acme.com")
+
 
         # c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             interact_2965(c, "http://www.acme.com/blah/rhubarb/",
                           'eggs="bar"; Version="1"')
-            self.assertIn("/blah/rhubarb/", c._cookies["www.acme.com"])
+            # self.assertIn("/blah/rhubarb/", c._cookies["www.acme.com"])
+            _assert_cookie_path_is_present(c, path="/blah/rhubarb/", domain="www.acme.com")
+
 
         # Netscape
 
         #c = CookieJar()
         with SqliteCookieJar(":memory:") as c:
             interact_netscape(c, "http://www.acme.com/", 'spam="bar"')
-            self.assertIn("/", c._cookies["www.acme.com"])
+            # self.assertIn("/", c._cookies["www.acme.com"])
+            _assert_cookie_path_is_present(c, path="/", domain="www.acme.com",)
+
 
         #c = CookieJar()
         with SqliteCookieJar(":memory:") as c:
             interact_netscape(c, "http://www.acme.com/blah", 'eggs="bar"')
-            self.assertIn("/", c._cookies["www.acme.com"])
+            # self.assertIn("/", c._cookies["www.acme.com"])
+            _assert_cookie_path_is_present(c, path="/", domain="www.acme.com")
+
 
         # c = CookieJar()
         with SqliteCookieJar(":memory:") as c:
             interact_netscape(c, "http://www.acme.com/blah/rhubarb", 'eggs="bar"')
-            self.assertIn("/blah", c._cookies["www.acme.com"])
+            # self.assertIn("/blah", c._cookies["www.acme.com"])
+            _assert_cookie_path_is_present(c, path="/blah", domain="www.acme.com")
+
 
         # c = CookieJar()
         with SqliteCookieJar(":memory:") as c:
             interact_netscape(c, "http://www.acme.com/blah/rhubarb/", 'eggs="bar"')
-            self.assertIn("/blah/rhubarb", c._cookies["www.acme.com"])
+            # self.assertIn("/blah/rhubarb", c._cookies["www.acme.com"])
+            _assert_cookie_path_is_present(c, path="/blah/rhubarb", domain="www.acme.com")
+
 
     def test_default_path_with_query(self):
         #cj = CookieJar()
@@ -817,7 +855,7 @@ class CookieTests(unittest.TestCase):
     def test_custom_secure_protocols(self):
         pol = DefaultCookiePolicy(secure_protocols=["foos"])
         #c = CookieJar(policy=pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", policy=pol) as c:
             headers = ["Set-Cookie: session=narf; secure; path=/"]
             req = urllib.request.Request("https://www.acme.com/")
             res = FakeResponse(headers, "https://www.acme.com/")
@@ -950,7 +988,7 @@ class CookieTests(unittest.TestCase):
 
     def test_Cookie_iterator(self):
         # cs = CookieJar(DefaultCookiePolicy(rfc2965=True))
-        with SqliteCookieJar(":memory:", DefaultCookiePolicy(rfc2965=True)) as c:
+        with SqliteCookieJar(":memory:", DefaultCookiePolicy(rfc2965=True)) as cs:
             # add some random cookies
             interact_2965(cs, "http://blah.spam.org/", 'foo=eggs; Version=1; '
                           'Comment="does anybody read these?"; '
@@ -1012,11 +1050,12 @@ class CookieTests(unittest.TestCase):
 
         def cookiejar_from_cookie_headers(headers):
             # c = CookieJar()
-            with SqliteCookieJar(":memory:") as c:
-                req = urllib.request.Request("http://www.example.com/")
-                r = FakeResponse(headers, "http://www.example.com/")
-                c.extract_cookies(r, req)
-                return c
+            c = SqliteCookieJar(":memory:")
+            c.connect()
+            req = urllib.request.Request("http://www.example.com/")
+            r = FakeResponse(headers, "http://www.example.com/")
+            c.extract_cookies(r, req)
+            return c
 
         future = time2netscape(time.time()+3600)
 
@@ -1035,9 +1074,22 @@ class CookieTests(unittest.TestCase):
             c = cookiejar_from_cookie_headers(headers)
             # these bad cookies shouldn't be set
             self.assertEqual(len(c), 0)
+            c.close()
 
         # cookie with invalid expires is treated as session cookie
         headers = ["Set-Cookie: c=foo; expires=Foo Bar 12 33:22:11 2000"]
         c = cookiejar_from_cookie_headers(headers)
-        cookie = c._cookies["www.example.com"]["/"]["c"]
+        # cookie = c._cookies["www.example.com"]["/"]["c"]
+        tmp_request = urllib.request.Request(
+            "http://www.example.com",
+            data=None,
+            headers={},
+            origin_req_host=None,
+            unverifiable=False,
+            method="GET")
+        cookie_list = c._cookies_for_domain(domain="www.example.com", request=tmp_request)
+        self.assertEqual(len(cookie_list), 1)
+        cookie = cookie_list[0]
+        self.assertEqual(cookie.name, "c")
         self.assertIsNone(cookie.expires)
+        self.assertEqual(cookie.path, "/")
