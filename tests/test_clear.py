@@ -8,7 +8,7 @@ from tests.fixtures import \
 )
 from biscutbox.sqlite_cookie_jar import SqliteCookieJar
 from biscutbox.sql_statements import SELECT_ALL_FROM_COOKIE_TABLE_BATCH_SIZE
-from tests.test_utilities import \
+from tests.testing_util import \
 (
     assert_cookie_equality,
     create_dummy_request,
