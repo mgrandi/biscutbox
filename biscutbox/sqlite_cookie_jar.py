@@ -20,6 +20,14 @@ class SqliteCookieJar(CookieJar):
     a cookiejar that is backed by a SQLite database
     '''
 
+    def __enter__(self):
+        self.connect()
+        return self
+
+    def __exit__(self ,type, value, traceback):
+
+        self.close()
+
     def __init__(self, database_path:PathLike, policy:CookiePolicy|None=None):
         '''
         constructor
@@ -618,6 +626,7 @@ class SqliteCookieJar(CookieJar):
         :return: the string name of this class
         '''
         return f"<{self.__class__.__name__} />"
+
     def close(self):
         ''' commit and close the database'''
 
