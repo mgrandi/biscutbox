@@ -576,11 +576,18 @@ class SqliteCookieJar(CookieJar):
         :return: the Cookie object we parsed
         '''
 
+        # ensure the port is a string rather than an integer
+        # because some of the default methods assume it is a string despite it
+        # being a numerical value
+        tmp_port = row["port"]
+        if tmp_port is not None:
+            tmp_port = str(tmp_port)
+
         result_cookie = Cookie(
             version=row["version"],
             name=row["name"],
             value=row["value"],
-            port=row["port"],
+            port=tmp_port,
             port_specified=bool(row["port_specified"]),
             domain=row["domain"],
             domain_specified=bool(row["domain_specified"]),
