@@ -138,6 +138,40 @@ class SqliteCookieJar(CookieJar):
         logger.debug("create table statement finished")
 
 
+    def _does_cookie_pass_non_domain_policies(self, cookie:Cookie, request:urllib.request.Request) -> bool:
+        '''
+        runs the various checks against the cookie policy except the domain check
+
+        :param cookie: the cookie to check
+        :param request: the request being made
+        :return: whether the cookie and request pass the policies
+        '''
+        if not self._policy.path_return_ok(cookie.path, request):
+            logger.debug("cookie with name `%s`, domain `%s`, and request `%s` failed the path policy",
+                cookie.name, cookie.domain, request.full_url)
+            return False
+
+        if not self._policy.return_ok(cookie, request):
+            logger.debug("cookie with name `%s`, domain `%s`, and request `%s` failed the return_ok policies",
+                cookie.name, cookie.domain, request.full_url)
+            return False
+
+        return True
+
+    def _does_domain_pass_policy(self, domain:str, request:urllib.request.Request) -> bool:
+        '''
+        do the domain checks against the cookie policy
+
+        :param domain: the domain to check
+        :param request: the request to check
+        :return: whether the domain passes the policy
+        '''
+        if not self._policy.domain_return_ok(domain, request):
+            logger.debug("domain `%s` failed policy, returning nothing", domain)
+            return False
+
+        return True
+
     @typing.override
     def _cookies_for_domain(self, domain:str, request:urllib.request.Request) -> list[Cookie]:
         '''
@@ -160,12 +194,11 @@ class SqliteCookieJar(CookieJar):
         self._policy._now = self._now = int(time.time())
 
 
-        # check the policy first
-        if not self._policy.domain_return_ok(domain, request):
-            logger.debug("domain `%s` failed policy, returning nothing", domain)
+        # check the domain policy manually first
+        if not self._does_domain_pass_policy(domain, request):
             return list()
 
-        logger.debug("Checking the domain `%s` for cookies to return for request `%s` - `%s`", domain, request.method, request.full_url)
+        logger.debug("Checking the domain `%s` for cookies to return for request `%s`", domain, request.full_url)
 
         result_list = list()
 
@@ -186,13 +219,12 @@ class SqliteCookieJar(CookieJar):
                 # the default policy will call `path_return_ok` which checks the full URL on the `request` parameter
                 # and 'return_ok" checks `return_ok_port`, `return_ok_verifiability`, `return_ok_secure`,
                 # `return_ok_expires`, `return_ok_domain`, `return_ok_version`
-                if (self._policy.path_return_ok(tmp_cookie.path, request)
-                    and self._policy.return_ok(tmp_cookie, request)):
+                if self._does_cookie_pass_non_domain_policies(tmp_cookie, request):
 
                     result_list.append(tmp_cookie)
                 else:
-                    logger.debug("cookie with name `%s` path `%s`, failed one or both of the policy checks, not returning",
-                        tmp_cookie.name, tmp_cookie.path)
+                    # failed policies don't add to list
+                    continue
 
         logger.debug("returning `%s` cookies", len(result_list))
 
@@ -268,17 +300,23 @@ class SqliteCookieJar(CookieJar):
 
                 tmp_cookie = self._cookie_from_sqlite_row(iter_row)
 
+                # check the domain policy manually first
+                if not self._does_domain_pass_policy(tmp_cookie.domain, request):
+                    # failed domain policy, don't return
+                    continue
+
                 # check the cookie policy and if both pass, add it to the result list
                 # the default policy will call `path_return_ok` which checks the full URL on the `request` parameter
                 # and 'return_ok" checks `return_ok_port`, `return_ok_verifiability`, `return_ok_secure`,
                 # `return_ok_expires`, `return_ok_domain`, `return_ok_version`
-                if (self._policy.path_return_ok(tmp_cookie.path, request)
-                    and self._policy.return_ok(tmp_cookie, request)):
+                if self._does_cookie_pass_non_domain_policies(tmp_cookie, request):
 
                     result_list.append(tmp_cookie)
                 else:
-                    logger.debug("cookie with name `%s` failed one or both of the policy checks, not returning",
-                        tmp_cookie.name)
+                    # failed policies, don't return
+                    continue
+
+        logger.debug("returning `%s` cookies", len(result_list))
 
         return result_list
 
