@@ -10,6 +10,7 @@ from test.support import warnings_helper
 import time
 import unittest
 import urllib.request
+import http.cookiejar
 from http.cookiejar import (time2isoz, http2time, iso2time, time2netscape,
      parse_ns_headers, join_header_words, split_header_words, Cookie,
      CookieJar, DefaultCookiePolicy, LWPCookieJar, MozillaCookieJar,
@@ -20,6 +21,8 @@ from http.cookiejar import (time2isoz, http2time, iso2time, time2netscape,
 from biscutbox.sqlite_cookie_jar import SqliteCookieJar
 
 mswindows = (sys.platform == "win32")
+http.cookiejar.debug = True
+
 
 # Taken and slightly edited from
 # https://github.com/python/cpython/blob/dd079db4b96fa474b8e6d71ae9db662c4ce28caf/Lib/test/test_http_cookiejar.py#
@@ -248,73 +251,81 @@ class CookieTests(unittest.TestCase):
         # names such as 'expires' are not special in first name=value pair
         # of Set-Cookie: header
         # c = CookieJar()
-        c = SqliteCookieJar(database_path=hardcoded_database_path)
-        c.connect()
-        interact_netscape(c, "http://www.acme.com/", 'expires=eggs')
-        interact_netscape(c, "http://www.acme.com/", 'version=eggs; spam=eggs')
+        with SqliteCookieJar(":memory:") as c:
+            interact_netscape(c, "http://www.acme.com/", 'expires=eggs')
+            interact_netscape(c, "http://www.acme.com/", 'version=eggs; spam=eggs')
 
-        cookies = c._cookies["www.acme.com"]["/"]
-        self.assertIn('expires', cookies)
-        self.assertIn('version', cookies)
-        c.close()
+            #cookies = c._cookies["www.acme.com"]["/"]
+            #self.assertIn('expires', cookies)
+            #self.assertIn('version', cookies)
+            req = urllib.request.Request("http://www.acme.com/")
+            cookie_list = sorted(c._cookies_for_domain("www.acme.com", req), key=lambda x: x.name)
+            self.assertEqual(len(cookie_list), 2)
+            tmp_cookie_expires = cookie_list[0]
+            self.assertEqual(tmp_cookie_expires.path, "/")
+            self.assertEqual(tmp_cookie_expires.name, "expires")
+            self.assertEqual(tmp_cookie_expires.value, "eggs")
+
+            tmp_cookie_version = cookie_list[1]
+            self.assertEqual(tmp_cookie_version.path, "/")
+            self.assertEqual(tmp_cookie_version.name, "version")
+            self.assertEqual(tmp_cookie_version.value, "eggs")
 
     def test_expires(self):
         # if expires is in future, keep cookie...
         # c = CookieJar()
-        c = SqliteCookieJar(database_path=hardcoded_database_path)
-        c.connect()
-        future = time2netscape(time.time()+3600)
+        with SqliteCookieJar(":memory:") as c:
+            future = time2netscape(time.time()+3600)
 
-        with warnings_helper.check_no_warnings(self):
-            headers = [f"Set-Cookie: FOO=BAR; path=/; expires={future}"]
-            req = urllib.request.Request("http://www.coyote.com/")
-            res = FakeResponse(headers, "http://www.coyote.com/")
-            cookies = c.make_cookies(res, req)
-            self.assertEqual(len(cookies), 1)
-            self.assertEqual(time2netscape(cookies[0].expires), future)
+            with warnings_helper.check_no_warnings(self):
+                headers = [f"Set-Cookie: FOO=BAR; path=/; expires={future}"]
+                req = urllib.request.Request("http://www.coyote.com/")
+                res = FakeResponse(headers, "http://www.coyote.com/")
+                cookies = c.make_cookies(res, req)
+                self.assertEqual(len(cookies), 1)
+                self.assertEqual(time2netscape(cookies[0].expires), future)
 
-        interact_netscape(c, "http://www.acme.com/", 'spam="bar"; expires=%s' %
-                          future)
-        self.assertEqual(len(c), 1)
-        now = time2netscape(time.time()-1)
-        # ... and if in past or present, discard it
-        interact_netscape(c, "http://www.acme.com/", 'foo="eggs"; expires=%s' %
-                          now)
-        h = interact_netscape(c, "http://www.acme.com/")
-        self.assertEqual(len(c), 1)
-        self.assertIn('spam="bar"', h)
-        self.assertNotIn("foo", h)
+            interact_netscape(c, "http://www.acme.com/", 'spam="bar"; expires=%s' %
+                              future)
+            self.assertEqual(len(c), 1)
+            now = time2netscape(time.time()-1)
+            # ... and if in past or present, discard it
+            interact_netscape(c, "http://www.acme.com/", 'foo="eggs"; expires=%s' %
+                              now)
+            h = interact_netscape(c, "http://www.acme.com/")
+            self.assertEqual(len(c), 1)
+            self.assertIn('spam="bar"', h)
+            self.assertNotIn("foo", h)
 
-        # max-age takes precedence over expires, and zero max-age is request to
-        # delete both new cookie and any old matching cookie
-        interact_netscape(c, "http://www.acme.com/", 'eggs="bar"; expires=%s' %
-                          future)
-        interact_netscape(c, "http://www.acme.com/", 'bar="bar"; expires=%s' %
-                          future)
-        self.assertEqual(len(c), 3)
-        interact_netscape(c, "http://www.acme.com/", 'eggs="bar"; '
-                          'expires=%s; max-age=0' % future)
-        interact_netscape(c, "http://www.acme.com/", 'bar="bar"; '
-                          'max-age=0; expires=%s' % future)
-        h = interact_netscape(c, "http://www.acme.com/")
-        self.assertEqual(len(c), 1)
+            # max-age takes precedence over expires, and zero max-age is request to
+            # delete both new cookie and any old matching cookie
+            interact_netscape(c, "http://www.acme.com/", 'eggs="bar"; expires=%s' %
+                              future)
+            interact_netscape(c, "http://www.acme.com/", 'bar="bar"; expires=%s' %
+                              future)
+            self.assertEqual(len(c), 3)
+            interact_netscape(c, "http://www.acme.com/", 'eggs="bar"; '
+                              'expires=%s; max-age=0' % future)
+            interact_netscape(c, "http://www.acme.com/", 'bar="bar"; '
+                              'max-age=0; expires=%s' % future)
+            h = interact_netscape(c, "http://www.acme.com/")
+            self.assertEqual(len(c), 1)
 
-        # test expiry at end of session for cookies with no expires attribute
-        interact_netscape(c, "http://www.rhubarb.net/", 'whum="fizz"')
-        self.assertEqual(len(c), 2)
-        c.clear_session_cookies()
-        self.assertEqual(len(c), 1)
-        self.assertIn('spam="bar"', h)
+            # test expiry at end of session for cookies with no expires attribute
+            interact_netscape(c, "http://www.rhubarb.net/", 'whum="fizz"')
+            self.assertEqual(len(c), 2)
+            c.clear_session_cookies()
+            self.assertEqual(len(c), 1)
+            self.assertIn('spam="bar"', h)
 
-        # test if fractional expiry is accepted
-        cookie  = Cookie(0, "name", "value",
-                         None, False, "www.python.org",
-                         True, False, "/",
-                         False, False, "1444312383.018307",
-                         False, None, None,
-                         {})
-        self.assertEqual(cookie.expires, 1444312383)
-        c.close()
+            # test if fractional expiry is accepted
+            cookie  = Cookie(0, "name", "value",
+                             None, False, "www.python.org",
+                             True, False, "/",
+                             False, False, "1444312383.018307",
+                             False, None, None,
+                             {})
+            self.assertEqual(cookie.expires, 1444312383)
 
         # XXX RFC 2965 expiry rules (some apply to V0 too)
 
@@ -411,7 +422,19 @@ class CookieTests(unittest.TestCase):
             value = 'eggs="bar"'
             interact_netscape(cj, uri, value)
             # Default path does not include query, so is "/", not "/?spam".
-            self.assertIn("/", cj._cookies["example.com"])
+            #self.assertIn("/", cj._cookies["example.com"])
+            tmp_request = urllib.request.Request(
+                uri,
+                data=None,
+                headers={},
+                origin_req_host=None,
+                unverifiable=False,
+                method="GET")
+            cookie_list = cj._cookies_for_domain("example.com", tmp_request)
+            self.assertEqual(len(cookie_list), 1)
+            tmp_cookie = cookie_list[0]
+            self.assertEqual("/", tmp_cookie.path)
+
             # Cookie is sent back to the same URI.
             self.assertEqual(interact_netscape(cj, uri), value)
 
@@ -437,10 +460,14 @@ class CookieTests(unittest.TestCase):
         strict_ns_path_pol = DefaultCookiePolicy(strict_ns_set_path=True)
 
         #c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             base_url = "http://bar.com"
             interact_netscape(c, base_url, 'spam=eggs; Path=/foo')
-            cookie = c._cookies['bar.com']['/foo']['spam']
+            #cookie = c._cookies['bar.com']['/foo']['spam']
+            tmp_request = urllib.request.Request(f"{base_url}/foo")
+            cookie_list = c._cookies_for_domain("bar.com", tmp_request)
+            self.assertEqual(1, len(cookie_list))
+            cookie = cookie_list[0]
 
             for path, ok in [('/foo', True),
                              ('/foo/', True),
@@ -553,7 +580,7 @@ class CookieTests(unittest.TestCase):
         # not be set if CookiePolicy.strict_domain is true.
         cp = DefaultCookiePolicy(strict_domain=True)
         #cj = CookieJar(policy=cp)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", cp) as cj:
             interact_netscape(cj, "http://example.co.uk/", 'no=problemo')
             interact_netscape(cj, "http://example.co.uk/",
                               'okey=dokey; Domain=.example.co.uk')
@@ -572,7 +599,16 @@ class CookieTests(unittest.TestCase):
             # two-component V0 domain is OK
             interact_netscape(c, "http://foo.net/", 'ns=bar')
             self.assertEqual(len(c), 1)
-            self.assertEqual(c._cookies["foo.net"]["/"]["ns"].value, "bar")
+            # self.assertEqual(c._cookies["foo.net"]["/"]["ns"].value, "bar")
+            req = urllib.request.Request("http://foo.net")
+            cookie_list_1 = c._cookies_for_request(req)
+            self.assertEqual(1, len(cookie_list_1))
+            cookie_1 = cookie_list_1[0]
+            self.assertEqual("foo.net", cookie_1.domain)
+            self.assertEqual("/", cookie_1.path)
+            self.assertEqual("ns", cookie_1.name)
+            self.assertEqual("bar", cookie_1.value)
+
             self.assertEqual(interact_netscape(c, "http://foo.net/"), "ns=bar")
             # *will* be returned to any other domain (unlike RFC 2965)...
             self.assertEqual(interact_netscape(c, "http://www.foo.net/"),
@@ -591,10 +627,31 @@ class CookieTests(unittest.TestCase):
             interact_netscape(c, "http://foo.net/foo/bar/",
                               'spam2=eggs; domain=.foo.net')
             self.assertEqual(len(c), 3)
-            self.assertEqual(c._cookies[".foo.net"]["/foo"]["spam1"].value,
-                             "eggs")
-            self.assertEqual(c._cookies[".foo.net"]["/foo/bar"]["spam2"].value,
-                             "eggs")
+            # self.assertEqual(c._cookies[".foo.net"]["/foo"]["spam1"].value,
+            #                  "eggs")
+            # self.assertEqual(c._cookies[".foo.net"]["/foo/bar"]["spam2"].value,
+            #                  "eggs")
+
+            req2 = urllib.request.Request("http://foo.net/foo")
+            cookie_list_2 = sorted(c._cookies_for_request(req2), key=lambda x: x.path)
+            # returns cookies for path `/` and `/foo`
+            self.assertEqual(2, len(cookie_list_2))
+            cookie_2 = cookie_list_2[1]
+            self.assertEqual(".foo.net", cookie_2.domain)
+            self.assertEqual("/foo", cookie_2.path)
+            self.assertEqual("spam1", cookie_2.name)
+            self.assertEqual("eggs", cookie_2.value)
+
+            req3 = urllib.request.Request("http://foo.net/foo/bar")
+            cookie_list_3 = sorted(c._cookies_for_request(req3), key=lambda x: x.path)
+            # returns cookies for path `/`, `/foo` and `/foo/bar`
+            self.assertEqual(3, len(cookie_list_3))
+            cookie_3 = cookie_list_3[2]
+            self.assertEqual(".foo.net", cookie_3.domain)
+            self.assertEqual("/foo/bar", cookie_3.path)
+            self.assertEqual("spam2", cookie_3.name)
+            self.assertEqual("eggs", cookie_3.value)
+
             self.assertEqual(interact_netscape(c, "http://foo.net/foo/bar/"),
                              "spam2=eggs; spam1=eggs; ns=bar")
 
@@ -622,15 +679,33 @@ class CookieTests(unittest.TestCase):
         #c = CookieJar()
         with SqliteCookieJar(":memory:") as c:
             interact_netscape(c, "http://localhost", "foo=bar; domain=localhost;")
+            # self.assertEqual(c._cookies[".localhost"]["/"]["foo"].value, "bar")
 
-            self.assertEqual(c._cookies[".localhost"]["/"]["foo"].value, "bar")
+            # NOTE: this is weird, what should be the domain for the request?
+            # we are adding the cookie fine but i can only get cookies through
+            # cookies_for_domain or cookies_for_request rather than looking at the
+            # cookie dictionary...
+            req = urllib.request.Request("http://.localhost")
+            cookie_list = c._cookies_for_domain(".localhost", req)
+            self.assertEqual(len(cookie_list), 1)
+            tmp_cookie = cookie_list[0]
+            self.assertEqual(tmp_cookie.path, "/")
+            self.assertEqual(tmp_cookie.name, "foo")
+            self.assertEqual(tmp_cookie.value, "bar")
 
     def test_localhost_domain_contents_2(self):
         #c = CookieJar()
         with SqliteCookieJar(":memory:") as c:
             interact_netscape(c, "http://localhost", "foo=bar;")
 
-            self.assertEqual(c._cookies["localhost.local"]["/"]["foo"].value, "bar")
+            # self.assertEqual(c._cookies["localhost.local"]["/"]["foo"].value, "bar")
+            req = urllib.request.Request("http://localhost.local")
+            cookie_list = c._cookies_for_domain("localhost.local", req)
+            self.assertEqual(len(cookie_list), 1)
+            tmp_cookie = cookie_list[0]
+            self.assertEqual(tmp_cookie.path, "/")
+            self.assertEqual(tmp_cookie.name, "foo")
+            self.assertEqual(tmp_cookie.value, "bar")
 
     def test_evil_nonlocal_domain(self):
         #c = CookieJar()
@@ -641,7 +716,7 @@ class CookieTests(unittest.TestCase):
 
     def test_evil_local_domain(self):
         # c = CookieJar()
-
+        with SqliteCookieJar(":memory:") as c:
             interact_netscape(c, "http://localhost", "foo=bar; domain=.evil.com")
 
             self.assertEqual(len(c), 0)
@@ -656,11 +731,21 @@ class CookieTests(unittest.TestCase):
     def test_two_component_domain_rfc2965(self):
         pol = DefaultCookiePolicy(rfc2965=True)
         #c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             # two-component V1 domain is OK
             interact_2965(c, "http://foo.net/", 'foo=bar; Version="1"')
             self.assertEqual(len(c), 1)
-            self.assertEqual(c._cookies["foo.net"]["/"]["foo"].value, "bar")
+            #self.assertEqual(c._cookies["foo.net"]["/"]["foo"].value, "bar")
+            req = urllib.request.Request("http://foo.net/")
+            cookie_list_one = c._cookies_for_request(req)
+            self.assertEqual(len(cookie_list_one), 1)
+            cookie_one = cookie_list_one[0]
+            self.assertEqual("/", cookie_one.path)
+            self.assertEqual("foo", cookie_one.name)
+            self.assertEqual("foo.net", cookie_one.domain)
+            self.assertEqual("bar", cookie_one.value)
+
+
             self.assertEqual(interact_2965(c, "http://foo.net/"),
                              "$Version=1; foo=bar")
             # won't be returned to any other domain (because domain was implied)
@@ -679,8 +764,18 @@ class CookieTests(unittest.TestCase):
             # set, because .foo.net domain-matches .foo.net
             interact_2965(c, "http://www.foo.net/foo/",
                           'spam=eggs; domain=foo.net; Version="1"')
-            self.assertEqual(c._cookies[".foo.net"]["/foo/"]["spam"].value,
-                             "eggs")
+            # self.assertEqual(c._cookies[".foo.net"]["/foo/"]["spam"].value,
+            #                  "eggs")
+
+            req2 = urllib.request.Request("http://www.foo.net/foo/")
+            cookie_list_two = c._cookies_for_request(req2)
+            self.assertEqual(len(cookie_list_two), 1)
+            cookie_two = cookie_list_two[0]
+            self.assertEqual("/foo/", cookie_two.path)
+            self.assertEqual("spam", cookie_two.name)
+            self.assertEqual(".foo.net", cookie_two.domain)
+            self.assertEqual("eggs", cookie_two.value)
+
             self.assertEqual(len(c), 2)
             self.assertEqual(interact_2965(c, "http://foo.net/foo/"),
                              "$Version=1; foo=bar")
@@ -735,7 +830,7 @@ class CookieTests(unittest.TestCase):
         pol = DefaultCookiePolicy(
             rfc2965=True, blocked_domains=[".acme.com"])
         #c = CookieJar(policy=pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             headers = ["Set-Cookie: CUSTOMER=WILE_E_COYOTE; path=/"]
 
             req = urllib.request.Request("http://www.acme.com/")
@@ -816,12 +911,33 @@ class CookieTests(unittest.TestCase):
                     url = "http://www.acme.com/"
                     int(c, url, "foo1=bar%s%s" % (vs, whitespace))
                     int(c, url, "foo2=bar%s; secure%s" %  (vs, whitespace))
-                    self.assertFalse(
-                        c._cookies["www.acme.com"]["/"]["foo1"].secure,
-                        "non-secure cookie registered secure")
-                    self.assertTrue(
-                        c._cookies["www.acme.com"]["/"]["foo2"].secure,
-                        "secure cookie registered non-secure")
+
+                    # self.assertFalse(
+                    #     c._cookies["www.acme.com"]["/"]["foo1"].secure,
+                    #     "non-secure cookie registered secure")
+
+                    req = urllib.request.Request("http://www.acme.com")
+                    cookie_list = sorted(c._cookies_for_request(req), key=lambda x: x.name)
+                    # only has the insecure cookie
+                    self.assertEqual(len(cookie_list), 1)
+                    cookie_foo1 = cookie_list[0]
+                    self.assertEqual("/", cookie_foo1.path)
+                    self.assertEqual("foo1", cookie_foo1.name)
+                    self.assertEqual(False, cookie_foo1.secure, "non-secure cookie registered secure")
+
+                    # self.assertTrue(
+                    #     c._cookies["www.acme.com"]["/"]["foo2"].secure,
+                    #     "secure cookie registered non-secure")
+
+                    req2 = urllib.request.Request("https://www.acme.com")
+                    cookie_list2 = sorted(c._cookies_for_request(req2), key=lambda x: x.name)
+                    # has both the secure and non secure cookie
+                    self.assertEqual(len(cookie_list2), 2)
+                    cookie_foo2 = cookie_list2[1]
+                    self.assertEqual("/", cookie_foo2.path)
+                    self.assertEqual("foo2", cookie_foo2.name)
+                    self.assertEqual(True, cookie_foo2.secure, "secure cookie registered non-secure")
+
 
     def test_secure_block(self):
         pol = DefaultCookiePolicy()
@@ -901,7 +1017,7 @@ class CookieTests(unittest.TestCase):
         pol = DefaultCookiePolicy(rfc2965=True)
 
         # c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             url = "http://foo.bar.com/"
             interact_2965(c, url, "spam=eggs; Version=1")
             h = interact_2965(c, url)
@@ -909,14 +1025,14 @@ class CookieTests(unittest.TestCase):
                          "absent domain returned with domain present")
 
         # c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             url = "http://foo.bar.com/"
             interact_2965(c, url, 'spam=eggs; Version=1; Domain=.bar.com')
             h = interact_2965(c, url)
             self.assertIn('$Domain=".bar.com"', h, "domain not returned")
 
         # c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             url = "http://foo.bar.com/"
             # note missing initial dot in Domain
             interact_2965(c, url, 'spam=eggs; Version=1; Domain=bar.com')
@@ -927,14 +1043,14 @@ class CookieTests(unittest.TestCase):
         pol = DefaultCookiePolicy(rfc2965=True)
 
         # c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             url = "http://foo.bar.com/"
             interact_2965(c, url, "spam=eggs; Version=1")
             h = interact_2965(c, url)
             self.assertNotIn("Path", h, "absent path returned with path present")
 
         # c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             url = "http://foo.bar.com/"
             interact_2965(c, url, 'spam=eggs; Version=1; Path=/')
             h = interact_2965(c, url)
@@ -944,14 +1060,14 @@ class CookieTests(unittest.TestCase):
         pol = DefaultCookiePolicy(rfc2965=True)
 
         #c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             url = "http://foo.bar.com/"
             interact_2965(c, url, "spam=eggs; Version=1")
             h = interact_2965(c, url)
             self.assertNotIn("Port", h, "absent port returned with port present")
 
         # c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             url = "http://foo.bar.com/"
             interact_2965(c, url, "spam=eggs; Version=1; Port")
             h = interact_2965(c, url)
@@ -959,7 +1075,7 @@ class CookieTests(unittest.TestCase):
                              "port with no value not returned with no value")
 
         # c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             url = "http://foo.bar.com/"
             interact_2965(c, url, 'spam=eggs; Version=1; Port="80"')
             h = interact_2965(c, url)
@@ -967,7 +1083,7 @@ class CookieTests(unittest.TestCase):
                           "port with single value not returned with single value")
 
         # c = CookieJar(pol)
-        with SqliteCookieJar(":memory:") as c:
+        with SqliteCookieJar(":memory:", pol) as c:
             url = "http://foo.bar.com/"
             interact_2965(c, url, 'spam=eggs; Version=1; Port="80,8080"')
             h = interact_2965(c, url)
